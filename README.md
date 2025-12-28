@@ -1,14 +1,19 @@
-# Operetas Arg - Registro de Operaciones
+# 📈 Operetas Arg - Registro de Operaciones
 
-Aplicación web desarrollada con Express.js que consume APIs REST para visualizar y analizar operaciones de inversión en acciones y CEDEARs.
+Aplicación web desarrollada con Express.js que consume APIs REST para visualizar y analizar operaciones de inversión en acciones y CEDEARs del mercado argentino.
 
-## Características
+## ✨ Características
 
 - 📊 **Resumen consolidado** por ticker con precio promedio, cantidad total y monto invertido
-- 📈 **Gráficos interactivos** de distribución por especie y tipo de instrumento
-- 📅 **Histórico de operaciones** organizadas por fecha
-- 🌙 **Modo oscuro** con persistencia en localStorage
-- 📱 **Diseño responsive** optimizado para desktop y móvil
+- 📈 **Gráficos de torta (pie charts)** interactivos de distribución por especie y tipo de instrumento
+- 📅 **Histórico de operaciones** organizadas por fecha con desplegables colapsables
+- 🌙 **Modo oscuro** automático con persistencia en localStorage y actualización dinámica
+- 📱 **Completamente responsive**:
+  - 💻 Desktop: Tablas completas con todas las columnas
+  - 📱 Tablet/Móvil: Tablas scrolleables horizontalmente
+  - 📲 Móvil pequeño: Vista de tarjetas (cards) vertical
+- 🎨 **Leyendas adaptativas**: Al costado en móviles, abajo en desktop
+- ⚡ **100% offline**: Todas las librerías alojadas localmente
 
 ## Instalación
 
@@ -62,12 +67,15 @@ Acceder a la aplicación en `http://localhost:3000`
 operetas-arg/
 ├── server.js          # Servidor Express y lógica principal
 ├── package.json       # Configuración de dependencias
+├── pnpm-lock.yaml    # Lock file de dependencias
 ├── .env              # Variables de entorno (no versionar)
 ├── .env.example      # Plantilla de variables de entorno
 ├── .gitignore        # Archivos ignorados por git
 ├── public/           # Archivos estáticos
-│   ├── css/          # Hojas de estilo (Water.css, Frappe Charts)
-│   └── js/           # Librerías JavaScript (Frappe Charts)
+│   ├── css/
+│   │   └── water.min.css         # Framework CSS minimalista
+│   └── js/
+│       └── chart.min.js          # Chart.js para gráficos
 └── README.md         # Documentación
 ```
 
@@ -101,10 +109,62 @@ Devuelve un array con datos consolidados por ticker:
 }
 ```
 
-## Tecnologías utilizadas
+## 🛠️ Tecnologías utilizadas
 
-- **Backend**: Node.js, Express.js
-- **Frontend**: HTML5, CSS3, JavaScript vanilla
-- **Gráficos**: Frappe Charts
-- **Estilos**: Water.css
-- **HTTP Client**: Fetch API
+### Backend
+- **Node.js** - Runtime de JavaScript
+- **Express.js** - Framework web minimalista
+- **dotenv** - Gestión de variables de entorno
+- **Fetch API** - Cliente HTTP nativo
+
+### Frontend
+- **HTML5** - Estructura semántica
+- **CSS3** - Estilos y animaciones
+- **JavaScript ES6+** - Lógica del cliente (vanilla)
+
+### Librerías
+- **Chart.js v4.4.1** (~60KB) - Gráficos de torta interactivos y responsive
+- **Water.css** (~2.6KB) - Framework CSS minimalista sin clases
+
+### Características técnicas
+- ✅ Sin dependencias frontend (jQuery, React, etc.)
+- ✅ Sin build tools ni transpiladores
+- ✅ Todas las librerías alojadas localmente
+- ✅ Compatible con todos los navegadores modernos
+- ✅ SEO friendly con SSR (Server-Side Rendering)
+
+## 📊 Características de los gráficos
+
+- **Tipo**: Pie charts (gráficos de torta)
+- **Leyendas personalizadas**: Muestran ticker y monto ($)
+- **Tooltips informativos**: Valor + porcentaje del total
+- **Colores consistentes**: Paleta de 10 colores vibrantes
+- **Responsive**:
+  - Desktop: Leyendas abajo, altura 220px
+  - Móvil: Leyendas al costado derecho, altura 160-180px
+- **Modo oscuro**: Las etiquetas cambian de color automáticamente
+- **Animaciones suaves**: Transiciones al cargar y actualizar
+
+## 🎨 Diseño responsive
+
+### Breakpoints
+- **Desktop**: > 900px - Layout completo con 2 columnas
+- **Tablet**: 769-900px - 1 columna, tablas scrolleables
+- **Móvil**: 481-768px - Tablas compactas, fuentes reducidas
+- **Móvil pequeño**: ≤ 480px - Vista de tarjetas (cards)
+
+### Adaptaciones por dispositivo
+| Componente | Desktop | Tablet | Móvil | Móvil pequeño |
+|------------|---------|--------|-------|---------------|
+| Tabla resumen | Completa | Completa | Scroll H | Cards |
+| Tablas por fecha | Completa | Completa | Scroll H | Cards |
+| Gráficos | 2 columnas | 1 columna | 1 columna | 1 columna |
+| Leyendas | Abajo | Derecha | Derecha | Derecha |
+
+## 📝 Notas de desarrollo
+
+- El proyecto usa **pnpm** como gestor de paquetes
+- Los gráficos se actualizan dinámicamente al cambiar de modo oscuro
+- Las tarjetas móviles tienen sombras y bordes para mejor separación visual
+- Todos los colores son accesibles según estándares WCAG
+- El favicon usa un emoji SVG (📈) para mejor compatibilidad
