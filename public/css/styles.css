@@ -30,6 +30,11 @@ body.dark-mode {
 .dark-mode .total-card {
   background-color: #16213e;
   border-color: #0f3460;
+  color: #eee;
+}
+
+.dark-mode .total-card strong {
+  color: #ffffff;
 }
 
 .dark-mode table {
@@ -138,6 +143,10 @@ h1 {
   transition: all 0.3s ease;
 }
 
+.summary-header {
+  background: var(--gradient-primary);
+}
+
 .charts-header {
   background: var(--gradient-secondary);
 }
@@ -146,9 +155,15 @@ h1 {
   background: var(--gradient-date);
 }
 
-.date-header:hover, .charts-header:hover {
+.summary-header:hover,
+.date-header:hover,
+.charts-header:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.summary-header:hover {
+  box-shadow: 0 4px 12px rgba(14,165,233,0.4);
 }
 
 .date-header:hover {
@@ -159,18 +174,24 @@ h1 {
   box-shadow: 0 4px 12px rgba(30,64,175,0.4);
 }
 
-.date-header h3, .charts-header h2 {
+.summary-header h2,
+.date-header h3,
+.charts-header h2 {
   margin: 0;
   color: white;
   font-size: 1rem;
 }
 
-.date-header .toggle-icon, .charts-header .toggle-icon {
+.summary-header .toggle-icon,
+.date-header .toggle-icon,
+.charts-header .toggle-icon {
   font-size: 1.2rem;
   transition: transform 0.3s;
 }
 
-.date-header.collapsed .toggle-icon, .charts-header.collapsed .toggle-icon {
+.summary-header.collapsed .toggle-icon,
+.date-header.collapsed .toggle-icon,
+.charts-header.collapsed .toggle-icon {
   transform: rotate(-90deg);
 }
 
@@ -191,6 +212,10 @@ h1 {
   max-height: 0;
   padding: 0 !important;
   margin: 0 !important;
+}
+
+.summary-content {
+  padding: 0.75rem;
 }
 
 .charts-content {
@@ -451,15 +476,20 @@ table {
     font-size: 0.8rem !important;
   }
 
+  .summary-content,
   .charts-content {
     padding: 0.5rem;
   }
 
-  .date-header, .charts-header {
+  .summary-header,
+  .date-header,
+  .charts-header {
     padding: 0.4rem 0.6rem;
   }
 
-  .date-header h3, .charts-header h2 {
+  .summary-header h2,
+  .date-header h3,
+  .charts-header h2 {
     font-size: 0.85rem !important;
   }
 
@@ -608,7 +638,9 @@ table {
     gap: 0.3rem;
   }
 
-  .date-header h3, .charts-header h2 {
+  .summary-header h2,
+  .date-header h3,
+  .charts-header h2 {
     font-size: 0.75rem !important;
   }
 

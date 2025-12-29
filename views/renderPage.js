@@ -20,9 +20,14 @@ function renderPage(data) {
   <div>
     <h1 style="text-align: center;">Registro de Operaciones</h1>
 
-    <div class="summary-table-container" style="margin-bottom: 0.5rem;">
-      <h2 style="font-size: 1rem; margin-top: 0; margin-bottom: 0.5rem;">Resumen</h2>
-      <table style="font-size: 0.8rem;">
+    <div class="charts-section" style="margin-bottom: 0.5rem;">
+      <div class="charts-header summary-header" onclick="toggleSection(this)">
+        <h2>Resumen</h2>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="charts-content summary-content">
+        <div class="summary-table-container" style="box-shadow: none; border: none; padding: 0.75rem 0;">
+          <table style="font-size: 0.8rem;">
         <thead>
           <tr>
             <th>Ticker</th>
@@ -80,6 +85,8 @@ function renderPage(data) {
             <span class="mobile-card-label">Total Invertido:</span>
             <span class="mobile-card-value"><strong>$${tickerSummary.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}</strong></span>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
