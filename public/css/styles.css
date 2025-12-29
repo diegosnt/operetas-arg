@@ -110,6 +110,11 @@ body.dark-mode {
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
 }
 
+.dark-mode-toggle svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 h1 {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
