@@ -515,6 +515,7 @@ table {
   margin-bottom: 0.75rem;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  color: #363636;
 }
 
 .dark-mode .mobile-card {
@@ -551,6 +552,11 @@ table {
 
 .mobile-card-value {
   text-align: right;
+  color: #363636;
+}
+
+.mobile-card-value strong {
+  color: #000000;
 }
 
 .mobile-card-ticker {
