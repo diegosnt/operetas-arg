@@ -566,6 +566,22 @@ table {
   margin-bottom: 0.3rem;
 }
 
+/* Tarjeta de total con fondo alternativo */
+.mobile-card-total {
+  background: var(--background-alt) !important;
+}
+
+.dark-mode .mobile-card-total {
+  background-color: #0f3460 !important;
+  border-color: #0ea5e9;
+}
+
+.dark-mode .mobile-card-total .mobile-card-label,
+.dark-mode .mobile-card-total .mobile-card-value,
+.dark-mode .mobile-card-total .mobile-card-value strong {
+  color: #ffffff !important;
+}
+
 .dark-mode .mobile-card-ticker {
   color: #22d3ee;
 }

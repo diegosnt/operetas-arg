@@ -75,7 +75,7 @@ function renderPage(data) {
             </div>
           </div>
         `).join('')}
-        <div class="mobile-card" style="background: var(--background-alt);">
+        <div class="mobile-card mobile-card-total">
           <div class="mobile-card-row">
             <span class="mobile-card-label">Total Invertido:</span>
             <span class="mobile-card-value"><strong>$${tickerSummary.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}</strong></span>
@@ -184,7 +184,7 @@ function renderPage(data) {
                       </div>
                     </div>
                   `).join('')}
-                  <div class="mobile-card" style="background: var(--background-alt);">
+                  <div class="mobile-card mobile-card-total">
                     <div class="mobile-card-row">
                       <span class="mobile-card-label">Subtotal del día:</span>
                       <span class="mobile-card-value"><strong>$${dateTotal.toFixed(2)}</strong></span>
