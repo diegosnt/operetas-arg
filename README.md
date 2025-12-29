@@ -1,6 +1,6 @@
-# 📈 Operetas Arg - Registro de Operaciones
+# 📈 Operetas AR - Registro de Operaciones
 
-Aplicación web desarrollada con Express.js que consume APIs REST para visualizar y analizar operaciones de inversión en acciones y CEDEARs del mercado argentino.
+Aplicación web desarrollada con Express.js para visualizar y analizar operaciones de inversión en acciones y CEDEARs del mercado argentino.
 
 ## ✨ Características
 
@@ -65,18 +65,23 @@ Acceder a la aplicación en `http://localhost:3000`
 
 ```
 operetas-arg/
-├── server.js          # Servidor Express y lógica principal
-├── package.json       # Configuración de dependencias
-├── pnpm-lock.yaml    # Lock file de dependencias
-├── .env              # Variables de entorno (no versionar)
-├── .env.example      # Plantilla de variables de entorno
-├── .gitignore        # Archivos ignorados por git
-├── public/           # Archivos estáticos
+├── server.js               # Servidor Express y lógica de backend
+├── views/
+│   └── renderPage.js       # Template HTML con renderizado dinámico
+├── public/                 # Archivos estáticos servidos por Express
 │   ├── css/
-│   │   └── water.min.css         # Framework CSS minimalista
-│   └── js/
-│       └── chart.min.js          # Chart.js para gráficos
-└── README.md         # Documentación
+│   │   ├── water.min.css   # Framework CSS minimalista
+│   │   └── styles.css      # Estilos personalizados
+│   ├── js/
+│   │   ├── chart.min.js    # Chart.js para gráficos
+│   │   └── app.js          # Lógica del cliente
+│   └── favicon.svg         # Icono de la aplicación
+├── package.json            # Configuración de dependencias
+├── pnpm-lock.yaml          # Lock file de dependencias
+├── .env                    # Variables de entorno (no versionar)
+├── .env.example            # Plantilla de variables de entorno
+├── .gitignore              # Archivos ignorados por git
+└── README.md               # Documentación
 ```
 
 ## Estructura de datos
@@ -127,11 +132,13 @@ Devuelve un array con datos consolidados por ticker:
 - **Water.css** (~2.6KB) - Framework CSS minimalista sin clases
 
 ### Características técnicas
+- ✅ **Arquitectura separada**: HTML, CSS y JavaScript en archivos independientes
 - ✅ Sin dependencias frontend (jQuery, React, etc.)
 - ✅ Sin build tools ni transpiladores
 - ✅ Todas las librerías alojadas localmente
 - ✅ Compatible con todos los navegadores modernos
 - ✅ SEO friendly con SSR (Server-Side Rendering)
+- ✅ **Paleta de colores personalizable**: Océano y Naturaleza (azul cielo, azul marino, teal)
 
 ## 📊 Características de los gráficos
 
@@ -167,4 +174,21 @@ Devuelve un array con datos consolidados por ticker:
 - Los gráficos se actualizan dinámicamente al cambiar de modo oscuro
 - Las tarjetas móviles tienen sombras y bordes para mejor separación visual
 - Todos los colores son accesibles según estándares WCAG
-- El favicon usa un emoji SVG (📈) para mejor compatibilidad
+- El favicon usa un SVG personalizado con gráfico ascendente verde
+
+## 🎨 Paleta de colores
+
+La aplicación utiliza la paleta **"Océano y Naturaleza"** con gradientes invertidos (oscuro a claro):
+
+- **Título principal**: Gradiente azul cielo (`#0284c7` → `#0ea5e9`)
+- **Secciones principales**: Gradiente azul marino (`#1e3a8a` → `#1e40af`)
+- **Fechas individuales**: Gradiente teal (`#0d9488` → `#14b8a6`)
+- **Modo oscuro**: Cyan claro para textos destacados (`#22d3ee`)
+
+## 🚀 Mejoras recientes
+
+- ✅ Código separado en archivos independientes (HTML, CSS, JS)
+- ✅ Favicon SVG personalizado con línea verde ascendente
+- ✅ Paleta de colores profesional con diferenciación clara de secciones
+- ✅ Gradientes invertidos para mejor contraste del texto
+- ✅ Estructura modular para mejor mantenibilidad
