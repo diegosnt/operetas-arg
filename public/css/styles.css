@@ -5,6 +5,8 @@
   --gradient-primary: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
   --gradient-secondary: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   --gradient-date: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  --background-alt: #e0f2fe;
+  --border: #bae6fd;
 }
 
 body {
@@ -604,6 +606,13 @@ table {
 /* Tarjeta de total con fondo alternativo */
 .mobile-card-total {
   background: var(--background-alt) !important;
+  border: 2px solid var(--color-primary) !important;
+}
+
+.mobile-card-total .mobile-card-label,
+.mobile-card-total .mobile-card-value,
+.mobile-card-total .mobile-card-value strong {
+  color: #1e40af !important;
 }
 
 .dark-mode .mobile-card-total {
