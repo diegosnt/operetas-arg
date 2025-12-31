@@ -5,6 +5,11 @@ Aplicación web desarrollada con Express.js para visualizar y analizar operacion
 ## ✨ Características
 
 - 📊 **Resumen consolidado** por ticker con precio promedio, cantidad total y monto invertido
+- 💰 **Precios actuales en tiempo real** con cálculo automático de:
+  - Total actual (precio actual × cantidad)
+  - Ganancia/pérdida en pesos (con colores verde/rojo)
+  - Ganancia/pérdida en porcentaje (con colores verde/rojo)
+- 💵 **Formato de números argentino** con separación de miles (punto) y decimales (coma)
 - 📈 **Gráficos de torta (pie charts)** interactivos de distribución por especie y tipo de instrumento
 - 📅 **Histórico de operaciones** organizadas por fecha con desplegables colapsables
 - 🌙 **Modo oscuro** automático con persistencia en localStorage y actualización dinámica
@@ -29,6 +34,8 @@ Crear un archivo `.env` en la raíz del proyecto con las siguientes variables:
 API_URL=<url_api_operaciones>
 API_URL_TOTAL=<url_api_resumen>
 API_KEY=<api_key>
+PRICE_API_URL=<url_api_precios>
+MARKET_SUFFIX=<sufijo_mercado>
 PORT=3000
 ```
 
@@ -36,6 +43,8 @@ Variables:
 - `API_URL`: Endpoint de la API de operaciones individuales
 - `API_URL_TOTAL`: Endpoint de la API con resumen consolidado
 - `API_KEY`: Clave de autenticación para las APIs
+- `PRICE_API_URL`: URL base de la API para obtener precios actuales
+- `MARKET_SUFFIX`: Sufijo del mercado a agregar al ticker (ej: .BA para Argentina)
 - `PORT`: Puerto del servidor (por defecto 3000)
 
 Ver `.env.example` para referencia.
@@ -140,6 +149,35 @@ Devuelve un array con datos consolidados por ticker:
 - ✅ SEO friendly con SSR (Server-Side Rendering)
 - ✅ **Paleta de colores personalizable**: Océano y Naturaleza (azul cielo, azul marino, teal)
 
+## 💰 Precios actuales y cálculo de ganancias
+
+La aplicación obtiene precios actuales de mercado para cada ticker y calcula automáticamente:
+
+### Columnas de la tabla resumen
+
+| Columna | Descripción | Formato |
+|---------|-------------|---------|
+| **Ticker** | Código del instrumento | Texto |
+| **Tipo** | Tipo de instrumento (acción, bono, etc.) | Texto |
+| **Nombre** | Nombre completo del instrumento | Texto |
+| **Precio Prom.** | Precio promedio de compra | $1.234,56 |
+| **Precio Actual** | Precio actual de mercado | $1.234,56 |
+| **Cant.** | Cantidad total de instrumentos | 1.234 |
+| **Total** | Monto total invertido (precio prom. × cant.) | $1.234.567,89 |
+| **Total Actual** | Valor actual (precio actual × cant.) | $1.234.567,89 |
+| **Ganancia** | Diferencia (total actual - total) | $±1.234,56 🟢🔴 |
+| **Ganancia %** | Porcentaje de ganancia/pérdida | ±12,34% 🟢🔴 |
+
+### Indicadores visuales
+- 🟢 **Verde**: Ganancia positiva (≥ 0)
+- 🔴 **Rojo**: Pérdida (< 0)
+- **N/A**: Precio no disponible
+
+### Actualización de precios
+- Los precios se obtienen en **paralelo** para optimizar el rendimiento
+- Si una API falla para algún ticker, se muestra "N/A" sin afectar el resto
+- Los totales se calculan automáticamente en la fila de subtotales
+
 ## 📊 Características de los gráficos
 
 - **Tipo**: Pie charts (gráficos de torta)
@@ -187,6 +225,11 @@ La aplicación utiliza la paleta **"Océano y Naturaleza"** con gradientes inver
 
 ## 🚀 Mejoras recientes
 
+- ✅ **Precios actuales**: Integración con API de precios en tiempo real
+- ✅ **Cálculo de ganancias**: Muestra ganancia/pérdida en pesos y porcentaje con colores
+- ✅ **Formato argentino**: Separación de miles con punto y decimales con coma
+- ✅ **Tabla resumen ampliada**: Ahora incluye 10 columnas con toda la información financiera
+- ✅ **Variables de entorno**: API de precios configurable desde .env
 - ✅ Código separado en archivos independientes (HTML, CSS, JS)
 - ✅ Favicon SVG personalizado con línea verde ascendente
 - ✅ Paleta de colores profesional con diferenciación clara de secciones

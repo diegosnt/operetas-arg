@@ -42,6 +42,46 @@ async function fetchTotalSummary() {
   return await response.json();
 }
 
+async function fetchCurrentPrice(ticker) {
+  try {
+    const marketSuffix = process.env.MARKET_SUFFIX || '';
+    const fullTicker = `${ticker}${marketSuffix}`;
+    const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`Price API failed for ${fullTicker}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const regularMarketPrice = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+
+    return regularMarketPrice || null;
+  } catch (error) {
+    console.warn(`Error fetching price for ${ticker}:`, error.message);
+    return null;
+  }
+}
+
+async function fetchAllCurrentPrices(tickers) {
+  const pricePromises = tickers.map(ticker =>
+    fetchCurrentPrice(ticker).then(price => ({ ticker, price }))
+  );
+
+  const results = await Promise.all(pricePromises);
+
+  return results.reduce((acc, { ticker, price }) => {
+    acc[ticker] = price;
+    return acc;
+  }, {});
+}
+
 app.get('/', async (req, res) => {
   try {
     const purchases = await fetchPurchases();
@@ -66,6 +106,15 @@ app.get('/', async (req, res) => {
       averagePrice: item.average_purchase_price || 0,
       totalCost: item.total_investment || 0
     })).sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+    // Obtener precios actuales
+    const tickers = tickerSummary.map(item => item.ticker);
+    const currentPrices = await fetchAllCurrentPrices(tickers);
+
+    // Añadir precios actuales al tickerSummary
+    tickerSummary.forEach(item => {
+      item.currentPrice = currentPrices[item.ticker] || null;
+    });
 
     const groupedByType = purchases.reduce((groups, purchase) => {
       const type = purchase.type || 'Sin tipo';

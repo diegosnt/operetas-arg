@@ -1,6 +1,11 @@
 function renderPage(data) {
   const { tickerSummary, typeSummary, sortedDates, groupedByDate, purchases } = data;
 
+  // Función helper para formatear números con separación de miles
+  const formatNumber = (num) => {
+    return num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   return `
 <!DOCTYPE html>
 <html lang="es">
@@ -43,39 +48,102 @@ function renderPage(data) {
       </div>
       <div class="charts-content summary-content">
         <div class="summary-table-container" style="box-shadow: none; border: none; padding: 0.75rem 0;">
-          <table style="font-size: 0.8rem;">
+          <table style="font-size: 0.65rem;">
         <thead>
           <tr>
             <th>Ticker</th>
             <th>Tipo</th>
             <th>Nombre</th>
             <th>Precio Prom.</th>
+            <th>Precio Actual</th>
             <th>Cant.</th>
             <th>Total</th>
+            <th>Total Actual</th>
+            <th>Ganancia</th>
+            <th>Ganancia %</th>
           </tr>
         </thead>
         <tbody>
-          ${tickerSummary.map(item => `
+          ${tickerSummary.map(item => {
+            const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : null;
+            const profit = currentTotal !== null ? currentTotal - item.totalCost : null;
+            const profitPercentage = profit !== null && item.totalCost > 0 ? (profit / item.totalCost) * 100 : null;
+            const profitClass = profit !== null ? (profit >= 0 ? 'profit-positive' : 'profit-negative') : '';
+
+            return `
             <tr>
               <td class="ticker">${item.ticker}</td>
               <td>${item.type || '-'}</td>
               <td>${item.name}</td>
-              <td>$${item.averagePrice.toFixed(2)}</td>
-              <td>${item.totalAmount}</td>
-              <td>$${item.totalCost.toFixed(2)}</td>
+              <td>$${formatNumber(item.averagePrice)}</td>
+              <td>${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</td>
+              <td>${item.totalAmount.toLocaleString('es-AR')}</td>
+              <td>$${formatNumber(item.totalCost)}</td>
+              <td>${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</td>
+              <td class="${profitClass}" style="font-weight: bold;">${profit !== null ? '$' + formatNumber(profit) : 'N/A'}</td>
+              <td class="${profitClass}" style="font-weight: bold;">${profitPercentage !== null ? formatNumber(profitPercentage) + '%' : 'N/A'}</td>
             </tr>
-          `).join('')}
+            `;
+          }).join('')}
           <tr class="subtotal">
-            <td colspan="4"></td>
-            <td>${tickerSummary.reduce((sum, item) => sum + item.totalAmount, 0)}</td>
-            <td>$${tickerSummary.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}</td>
+            <td colspan="5"></td>
+            <td>${tickerSummary.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString('es-AR')}</td>
+            <td>$${formatNumber(tickerSummary.reduce((sum, item) => sum + item.totalCost, 0))}</td>
+            <td>${(() => {
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              return totalCurrent > 0 ? '$' + formatNumber(totalCurrent) : 'N/A';
+            })()}</td>
+            <td class="${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+            })()}" style="font-weight: bold;">${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalCurrent > 0 ? '$' + formatNumber(totalProfit) : 'N/A';
+            })()}</td>
+            <td class="${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+            })()}" style="font-weight: bold;">${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              const totalProfitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+              return totalCurrent > 0 ? formatNumber(totalProfitPercentage) + '%' : 'N/A';
+            })()}</td>
           </tr>
         </tbody>
       </table>
 
       <!-- Vista móvil en formato de tarjetas -->
       <div class="mobile-cards">
-        ${tickerSummary.map(item => `
+        ${tickerSummary.map(item => {
+          const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : null;
+          const profit = currentTotal !== null ? currentTotal - item.totalCost : null;
+          const profitPercentage = profit !== null && item.totalCost > 0 ? (profit / item.totalCost) * 100 : null;
+          const profitClass = profit !== null ? (profit >= 0 ? 'profit-positive' : 'profit-negative') : '';
+
+          return `
           <div class="mobile-card">
             <div class="mobile-card-ticker">${item.ticker} - ${item.type || 'N/A'}</div>
             <div class="mobile-card-row">
@@ -84,22 +152,90 @@ function renderPage(data) {
             </div>
             <div class="mobile-card-row">
               <span class="mobile-card-label">Precio Prom:</span>
-              <span class="mobile-card-value">$${item.averagePrice.toFixed(2)}</span>
+              <span class="mobile-card-value">$${formatNumber(item.averagePrice)}</span>
+            </div>
+            <div class="mobile-card-row">
+              <span class="mobile-card-label">Precio Actual:</span>
+              <span class="mobile-card-value">${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</span>
             </div>
             <div class="mobile-card-row">
               <span class="mobile-card-label">Cantidad:</span>
-              <span class="mobile-card-value">${item.totalAmount}</span>
+              <span class="mobile-card-value">${item.totalAmount.toLocaleString('es-AR')}</span>
             </div>
             <div class="mobile-card-row">
               <span class="mobile-card-label">Total:</span>
-              <span class="mobile-card-value"><strong>$${item.totalCost.toFixed(2)}</strong></span>
+              <span class="mobile-card-value"><strong>$${formatNumber(item.totalCost)}</strong></span>
+            </div>
+            <div class="mobile-card-row">
+              <span class="mobile-card-label">Total Actual:</span>
+              <span class="mobile-card-value"><strong>${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</strong></span>
+            </div>
+            <div class="mobile-card-row">
+              <span class="mobile-card-label">Ganancia:</span>
+              <span class="mobile-card-value ${profitClass}" style="font-weight: bold;">${profit !== null ? '$' + formatNumber(profit) : 'N/A'}</span>
+            </div>
+            <div class="mobile-card-row">
+              <span class="mobile-card-label">Ganancia %:</span>
+              <span class="mobile-card-value ${profitClass}" style="font-weight: bold;">${profitPercentage !== null ? formatNumber(profitPercentage) + '%' : 'N/A'}</span>
             </div>
           </div>
-        `).join('')}
+          `;
+        }).join('')}
         <div class="mobile-card mobile-card-total">
           <div class="mobile-card-row">
             <span class="mobile-card-label">Total Invertido:</span>
-            <span class="mobile-card-value"><strong>$${tickerSummary.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}</strong></span>
+            <span class="mobile-card-value"><strong>$${formatNumber(tickerSummary.reduce((sum, item) => sum + item.totalCost, 0))}</strong></span>
+          </div>
+          <div class="mobile-card-row">
+            <span class="mobile-card-label">Total Actual:</span>
+            <span class="mobile-card-value"><strong>${(() => {
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              return totalCurrent > 0 ? '$' + formatNumber(totalCurrent) : 'N/A';
+            })()}</strong></span>
+          </div>
+          <div class="mobile-card-row">
+            <span class="mobile-card-label">Ganancia Total:</span>
+            <span class="mobile-card-value ${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+            })()}" style="font-weight: bold;"><strong>${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalCurrent > 0 ? '$' + formatNumber(totalProfit) : 'N/A';
+            })()}</strong></span>
+          </div>
+          <div class="mobile-card-row">
+            <span class="mobile-card-label">Ganancia % Total:</span>
+            <span class="mobile-card-value ${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+            })()}" style="font-weight: bold;"><strong>${(() => {
+              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+              const totalCurrent = tickerSummary.reduce((sum, item) => {
+                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+                return sum + currentTotal;
+              }, 0);
+              const totalProfit = totalCurrent - totalCost;
+              const totalProfitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+              return totalCurrent > 0 ? formatNumber(totalProfitPercentage) + '%' : 'N/A';
+            })()}</strong></span>
           </div>
         </div>
       </div>
@@ -145,7 +281,7 @@ function renderPage(data) {
                   <h3>${new Date(date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                   <div class="date-info">
                     <span>${itemCount} compra${itemCount !== 1 ? 's' : ''}</span>
-                    <span>Total: $${dateTotal.toFixed(2)}</span>
+                    <span>Total: $${formatNumber(dateTotal)}</span>
                   </div>
                 </div>
                 <span class="toggle-icon">▼</span>
@@ -168,14 +304,14 @@ function renderPage(data) {
                         <td class="ticker">${p.ticker}</td>
                         <td>${p.type || '-'}</td>
                         <td>${p.name}</td>
-                        <td>$${p.purchase_price.toFixed(2)}</td>
-                        <td>${p.purchase_amount}</td>
-                        <td>$${(p.purchase_price * p.purchase_amount).toFixed(2)}</td>
+                        <td>$${formatNumber(p.purchase_price)}</td>
+                        <td>${p.purchase_amount.toLocaleString('es-AR')}</td>
+                        <td>$${formatNumber(p.purchase_price * p.purchase_amount)}</td>
                       </tr>
                     `).join('')}
                     <tr class="subtotal">
                       <td colspan="5">Subtotal del día</td>
-                      <td>$${dateTotal.toFixed(2)}</td>
+                      <td>$${formatNumber(dateTotal)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -195,22 +331,22 @@ function renderPage(data) {
                       </div>
                       <div class="mobile-card-row">
                         <span class="mobile-card-label">Precio:</span>
-                        <span class="mobile-card-value">$${p.purchase_price.toFixed(2)}</span>
+                        <span class="mobile-card-value">$${formatNumber(p.purchase_price)}</span>
                       </div>
                       <div class="mobile-card-row">
                         <span class="mobile-card-label">Cantidad:</span>
-                        <span class="mobile-card-value">${p.purchase_amount}</span>
+                        <span class="mobile-card-value">${p.purchase_amount.toLocaleString('es-AR')}</span>
                       </div>
                       <div class="mobile-card-row">
                         <span class="mobile-card-label">Total:</span>
-                        <span class="mobile-card-value"><strong>$${(p.purchase_price * p.purchase_amount).toFixed(2)}</strong></span>
+                        <span class="mobile-card-value"><strong>$${formatNumber(p.purchase_price * p.purchase_amount)}</strong></span>
                       </div>
                     </div>
                   `).join('')}
                   <div class="mobile-card mobile-card-total">
                     <div class="mobile-card-row">
                       <span class="mobile-card-label">Subtotal del día:</span>
-                      <span class="mobile-card-value"><strong>$${dateTotal.toFixed(2)}</strong></span>
+                      <span class="mobile-card-value"><strong>$${formatNumber(dateTotal)}</strong></span>
                     </div>
                   </div>
                 </div>
@@ -223,7 +359,7 @@ function renderPage(data) {
 
     <div class="total-card">
       <strong>Total de operaciones:</strong> ${purchases.length} registros |
-      <strong>Total invertido:</strong> $${purchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0).toFixed(2)}
+      <strong>Total invertido:</strong> $${formatNumber(purchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0))}
     </div>
   </div>
 

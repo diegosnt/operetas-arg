@@ -375,6 +375,11 @@ tbody tr:hover {
   text-align: center;
   border: 1px solid var(--border);
   font-size: 0.9rem;
+  color: #0c4a6e;
+}
+
+.total-card strong {
+  color: #0c4a6e;
 }
 
 table {
@@ -681,4 +686,59 @@ table {
   canvas {
     max-height: 180px !important;
   }
+}
+
+/* Estilos para colores de ganancia/pérdida */
+/* Modo claro - colores estándar */
+.profit-positive {
+  color: #16a34a !important;
+}
+
+.profit-negative {
+  color: #dc2626 !important;
+}
+
+/* Modo oscuro - colores más vibrantes para mejor contraste */
+.dark-mode .profit-positive {
+  color: #4ade80 !important;
+}
+
+.dark-mode .profit-negative {
+  color: #f87171 !important;
+}
+
+/* Asegurar que los colores se apliquen también en la fila de subtotales */
+.subtotal td.profit-positive,
+.dark-mode .subtotal td.profit-positive {
+  color: #16a34a !important;
+}
+
+.dark-mode .subtotal td.profit-positive {
+  color: #4ade80 !important;
+}
+
+.subtotal td.profit-negative,
+.dark-mode .subtotal td.profit-negative {
+  color: #dc2626 !important;
+}
+
+.dark-mode .subtotal td.profit-negative {
+  color: #f87171 !important;
+}
+
+/* Asegurar que los colores se apliquen en tarjetas móviles */
+.mobile-card-value.profit-positive {
+  color: #16a34a !important;
+}
+
+.mobile-card-value.profit-negative {
+  color: #dc2626 !important;
+}
+
+.dark-mode .mobile-card-value.profit-positive {
+  color: #4ade80 !important;
+}
+
+.dark-mode .mobile-card-value.profit-negative {
+  color: #f87171 !important;
 }
