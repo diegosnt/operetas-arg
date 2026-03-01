@@ -1,10 +1,19 @@
 function renderPage(data) {
   const { tickerSummary, typeSummary, sortedDates, groupedByDate, purchases } = data;
 
-  // Función helper para formatear números con separación de miles
   const formatNumber = (num) => {
     return num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
+
+  // Totales del resumen — calculados una sola vez
+  const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalCurrent = tickerSummary.reduce((sum, item) => {
+    return sum + (item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0);
+  }, 0);
+  const totalProfit = totalCurrent - totalCost;
+  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+  const totalProfitClass = totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
+  const hasTotalCurrent = totalCurrent > 0;
 
   return `
 <!DOCTYPE html>
@@ -16,6 +25,7 @@ function renderPage(data) {
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/water.min.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <script>if (localStorage.getItem('darkMode') === 'enabled') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
   <button class="dark-mode-toggle" onclick="toggleDarkMode()">
@@ -42,7 +52,7 @@ function renderPage(data) {
     <h1 style="text-align: center;">Registro de Operaciones</h1>
 
     <div class="charts-section" style="margin-bottom: 0.5rem;">
-      <div class="charts-header summary-header" onclick="toggleSection(this)">
+      <div class="charts-header summary-header" onclick="toggleCollapsible(this)">
         <h2>Resumen</h2>
         <span class="toggle-icon">▼</span>
       </div>
@@ -88,49 +98,10 @@ function renderPage(data) {
           <tr class="subtotal">
             <td colspan="5"></td>
             <td>${tickerSummary.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString('es-AR')}</td>
-            <td>$${formatNumber(tickerSummary.reduce((sum, item) => sum + item.totalCost, 0))}</td>
-            <td>${(() => {
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              return totalCurrent > 0 ? '$' + formatNumber(totalCurrent) : 'N/A';
-            })()}</td>
-            <td class="${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
-            })()}" style="font-weight: bold;">${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalCurrent > 0 ? '$' + formatNumber(totalProfit) : 'N/A';
-            })()}</td>
-            <td class="${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
-            })()}" style="font-weight: bold;">${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              const totalProfitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-              return totalCurrent > 0 ? formatNumber(totalProfitPercentage) + '%' : 'N/A';
-            })()}</td>
+            <td>$${formatNumber(totalCost)}</td>
+            <td>${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</td>
+            <td class="${totalProfitClass}" style="font-weight: bold;">${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}</td>
+            <td class="${totalProfitClass}" style="font-weight: bold;">${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}</td>
           </tr>
         </tbody>
       </table>
@@ -184,58 +155,19 @@ function renderPage(data) {
         <div class="mobile-card mobile-card-total">
           <div class="mobile-card-row">
             <span class="mobile-card-label">Total Invertido:</span>
-            <span class="mobile-card-value"><strong>$${formatNumber(tickerSummary.reduce((sum, item) => sum + item.totalCost, 0))}</strong></span>
+            <span class="mobile-card-value"><strong>$${formatNumber(totalCost)}</strong></span>
           </div>
           <div class="mobile-card-row">
             <span class="mobile-card-label">Total Actual:</span>
-            <span class="mobile-card-value"><strong>${(() => {
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              return totalCurrent > 0 ? '$' + formatNumber(totalCurrent) : 'N/A';
-            })()}</strong></span>
+            <span class="mobile-card-value"><strong>${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</strong></span>
           </div>
           <div class="mobile-card-row">
             <span class="mobile-card-label">Ganancia Total:</span>
-            <span class="mobile-card-value ${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
-            })()}" style="font-weight: bold;"><strong>${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalCurrent > 0 ? '$' + formatNumber(totalProfit) : 'N/A';
-            })()}</strong></span>
+            <span class="mobile-card-value ${totalProfitClass}" style="font-weight: bold;"><strong>${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}</strong></span>
           </div>
           <div class="mobile-card-row">
             <span class="mobile-card-label">Ganancia % Total:</span>
-            <span class="mobile-card-value ${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              return totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
-            })()}" style="font-weight: bold;"><strong>${(() => {
-              const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-              const totalCurrent = tickerSummary.reduce((sum, item) => {
-                const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-                return sum + currentTotal;
-              }, 0);
-              const totalProfit = totalCurrent - totalCost;
-              const totalProfitPercentage = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-              return totalCurrent > 0 ? formatNumber(totalProfitPercentage) + '%' : 'N/A';
-            })()}</strong></span>
+            <span class="mobile-card-value ${totalProfitClass}" style="font-weight: bold;"><strong>${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}</strong></span>
           </div>
         </div>
       </div>
@@ -244,7 +176,7 @@ function renderPage(data) {
     </div>
 
     <div class="charts-section">
-      <div class="charts-header collapsed" onclick="toggleSection(this)">
+      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
         <h2>Gráficos de Distribución</h2>
         <span class="toggle-icon">▼</span>
       </div>
@@ -264,21 +196,21 @@ function renderPage(data) {
     </div>
 
     <div class="charts-section">
-      <div class="charts-header collapsed" onclick="toggleSection(this)">
+      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
         <h2>Operaciones por Fecha</h2>
         <span class="toggle-icon">▼</span>
       </div>
       <div class="charts-content collapsed">
         ${sortedDates.map(date => {
-          const datePurchases = groupedByDate[date];
+          const datePurchases = groupedByDate[date].slice().sort((a, b) => a.ticker.localeCompare(b.ticker));
           const dateTotal = datePurchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0);
           const itemCount = datePurchases.length;
 
           return `
             <div class="date-group">
-              <div class="date-header collapsed" onclick="toggleDate(this)">
+              <div class="date-header collapsed" onclick="toggleCollapsible(this)">
                 <div>
-                  <h3>${new Date(date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                  <h3>${new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
                   <div class="date-info">
                     <span>${itemCount} compra${itemCount !== 1 ? 's' : ''}</span>
                     <span>Total: $${formatNumber(dateTotal)}</span>
@@ -299,7 +231,7 @@ function renderPage(data) {
                     </tr>
                   </thead>
                   <tbody>
-                    ${datePurchases.sort((a, b) => a.ticker.localeCompare(b.ticker)).map(p => `
+                    ${datePurchases.map(p => `
                       <tr>
                         <td class="ticker">${p.ticker}</td>
                         <td>${p.type || '-'}</td>
@@ -318,7 +250,7 @@ function renderPage(data) {
 
                 <!-- Vista móvil en formato de tarjetas para operaciones por fecha -->
                 <div class="mobile-cards">
-                  ${datePurchases.sort((a, b) => a.ticker.localeCompare(b.ticker)).map(p => `
+                  ${datePurchases.map(p => `
                     <div class="mobile-card">
                       <div class="mobile-card-ticker">${p.ticker}</div>
                       <div class="mobile-card-row">

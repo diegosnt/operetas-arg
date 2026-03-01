@@ -1,21 +1,15 @@
-function toggleDate(header) {
-  const content = header.nextElementSibling;
-  header.classList.toggle('collapsed');
-  content.classList.toggle('collapsed');
-}
-
-function toggleSection(header) {
+function toggleCollapsible(header) {
   const content = header.nextElementSibling;
   header.classList.toggle('collapsed');
   content.classList.toggle('collapsed');
 }
 
 function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
+  document.documentElement.classList.toggle('dark-mode');
   const lightIcon = document.querySelector('.light-icon');
   const darkIcon = document.querySelector('.dark-icon');
 
-  const isDark = document.body.classList.contains('dark-mode');
+  const isDark = document.documentElement.classList.contains('dark-mode');
   const newTextColor = isDark ? '#e0e0e0' : '#666';
 
   if (isDark) {
@@ -34,7 +28,7 @@ function toggleDarkMode() {
     // Forzar regeneración de etiquetas
     window.chartByTicker.options.plugins.legend.labels.generateLabels = function(chart) {
       const data = chart.data;
-      const isDark = document.body.classList.contains('dark-mode');
+      const isDark = document.documentElement.classList.contains('dark-mode');
       const labelColor = isDark ? '#e0e0e0' : '#666';
 
       if (data.labels.length && data.datasets.length) {
@@ -59,7 +53,7 @@ function toggleDarkMode() {
     // Forzar regeneración de etiquetas
     window.chartByType.options.plugins.legend.labels.generateLabels = function(chart) {
       const data = chart.data;
-      const isDark = document.body.classList.contains('dark-mode');
+      const isDark = document.documentElement.classList.contains('dark-mode');
       const labelColor = isDark ? '#e0e0e0' : '#666';
 
       if (data.labels.length && data.datasets.length) {
@@ -82,22 +76,17 @@ function toggleDarkMode() {
 }
 
 function initializeCharts(tickerData, typeData) {
-  // IMPORTANTE: Cargar preferencia de modo oscuro ANTES de crear los gráficos
-  if (localStorage.getItem('darkMode') === 'enabled') {
-    document.body.classList.add('dark-mode');
+  // Sincronizar icono con la preferencia ya aplicada en el <head>
+  if (document.documentElement.classList.contains('dark-mode')) {
     document.querySelector('.light-icon').style.display = 'none';
     document.querySelector('.dark-icon').style.display = 'inline';
   }
 
-  // Detectar tamaño de pantalla para configuración de leyenda
   const isMobile = window.innerWidth <= 768;
   const legendPosition = isMobile ? 'right' : 'bottom';
 
-  // Detectar modo oscuro para colores de texto (DESPUÉS de cargar preferencia)
-  const isDarkMode = document.body.classList.contains('dark-mode');
+  const isDarkMode = document.documentElement.classList.contains('dark-mode');
   const textColor = isDarkMode ? '#e0e0e0' : '#666';
-
-  console.log('Modo oscuro activo:', isDarkMode, '- Color de texto:', textColor);
 
   // Configuración común para los gráficos
   const commonOptions = {
@@ -117,7 +106,7 @@ function initializeCharts(tickerData, typeData) {
           },
           generateLabels: function(chart) {
             const data = chart.data;
-            const isDark = document.body.classList.contains('dark-mode');
+            const isDark = document.documentElement.classList.contains('dark-mode');
             const labelColor = isDark ? '#e0e0e0' : '#666';
 
             if (data.labels.length && data.datasets.length) {

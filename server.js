@@ -5,7 +5,6 @@ const { renderPage } = require('./views/renderPage');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
 app.use(express.static('public'));
 
 async function fetchPurchases() {
@@ -42,7 +41,14 @@ async function fetchTotalSummary() {
   return await response.json();
 }
 
+const priceCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
 async function fetchCurrentPrice(ticker) {
+  const cached = priceCache.get(ticker);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.price;
+  }
   try {
     const marketSuffix = process.env.MARKET_SUFFIX || '';
     const fullTicker = `${ticker}${marketSuffix}`;
@@ -61,8 +67,12 @@ async function fetchCurrentPrice(ticker) {
 
     const data = await response.json();
     const regularMarketPrice = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    const price = regularMarketPrice || null;
 
-    return regularMarketPrice || null;
+    if (price !== null) {
+      priceCache.set(ticker, { price, timestamp: Date.now() });
+    }
+    return price;
   } catch (error) {
     console.warn(`Error fetching price for ${ticker}:`, error.message);
     return null;
@@ -84,8 +94,7 @@ async function fetchAllCurrentPrices(tickers) {
 
 app.get('/', async (req, res) => {
   try {
-    const purchases = await fetchPurchases();
-    const totalSummary = await fetchTotalSummary();
+    const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
 
     const groupedByDate = purchases.reduce((groups, purchase) => {
       const date = purchase.purchase_date;
@@ -143,7 +152,7 @@ app.get('/', async (req, res) => {
     res.send(html);
   } catch (error) {
     console.error('Error fetching purchases:', error);
-    res.status(500).send('<h1>Error al cargar las compras</h1><p>' + error.message + '</p>');
+    res.status(500).send('<h1>Error al cargar las compras</h1><p>Ocurrió un error interno. Por favor, intentá de nuevo más tarde.</p>');
   }
 });
 
