@@ -52,7 +52,12 @@ app.use(express.static('public'));
 
 // --- Lógica de Caché y Datos ---
 
-const isRedisConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+// Detección de Redis (Vercel KV o Upstash Marketplace)
+const isRedisConfigured = !!(
+  (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) || 
+  (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+);
+
 const localPriceCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -87,7 +92,11 @@ async function fetchCurrentPrice(ticker) {
   try {
     let cached = null;
     if (isRedisConfigured) {
-      try { cached = await kv.get(cacheKey); } catch (e) { console.warn('Redis error'); }
+      try { 
+        cached = await kv.get(cacheKey); 
+      } catch (e) { 
+        console.warn(`Redis fetch error for ${ticker}:`, e.message); 
+      }
     }
     if (!cached && localPriceCache.has(ticker)) {
       const d = localPriceCache.get(ticker);
