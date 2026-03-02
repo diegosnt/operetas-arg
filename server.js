@@ -3,7 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const { rateLimit } = require('express-rate-limit');
-const { kv } = require('@vercel/kv');
+const Redis = require('ioredis');
 const { renderPage } = require('./views/renderPage');
 
 const app = express();
@@ -42,19 +42,23 @@ app.use(express.static('public'));
 
 // --- Lógica de Datos y Redis ---
 
-// Diagnóstico de variables en consola de Vercel
-console.log('--- Redis Config ---');
-console.log('UPSTASH_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'OK' : 'MISS');
-console.log('KV_REST_URL:', process.env.KV_REST_API_URL ? 'OK' : 'MISS');
-
-const isRedisConfigured = !!(
-  (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) || 
-  (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-);
+// Conexión inteligente a Redis
+let redis = null;
+if (process.env.REDIS_URL) {
+  try {
+    redis = new Redis(process.env.REDIS_URL, {
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 1
+    });
+    redis.on('error', (err) => console.warn('Redis connection error:', err.message));
+  } catch (e) {
+    console.warn('Could not initialize Redis');
+  }
+}
 
 const localPriceCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-let lastDataSource = 'API Directa';
+let lastDataSource = 'Ninguna';
 
 async function fetchPurchases() {
   const response = await fetch(process.env.API_URL, {
@@ -74,12 +78,16 @@ async function fetchCurrentPrice(ticker) {
   const cacheKey = `price:${ticker}`;
   try {
     let cached = null;
-    if (isRedisConfigured) {
+    
+    // 1. Intentar Redis
+    if (redis) {
       try { 
-        cached = await kv.get(cacheKey); 
+        cached = await redis.get(cacheKey); 
         if (cached) lastDataSource = 'Redis (Persistente)';
-      } catch (e) { console.error('Redis error'); }
+      } catch (e) { console.warn('Redis get error'); }
     }
+    
+    // 2. Intentar Memoria
     if (!cached && localPriceCache.has(ticker)) {
       const d = localPriceCache.get(ticker);
       if (Date.now() - d.timestamp < CACHE_TTL_MS) {
@@ -89,7 +97,8 @@ async function fetchCurrentPrice(ticker) {
     }
     if (cached) return cached;
 
-    lastDataSource = 'API (Yahoo/Market)';
+    // 3. Consultar API
+    lastDataSource = 'API (Directa)';
     const fullTicker = `${ticker}${process.env.MARKET_SUFFIX || ''}`;
     const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -97,7 +106,9 @@ async function fetchCurrentPrice(ticker) {
     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
 
     if (price !== null) {
-      if (isRedisConfigured) try { await kv.set(cacheKey, price, { ex: 300 }); } catch (e) {}
+      if (redis) {
+        try { await redis.set(cacheKey, price, 'EX', 300); } catch (e) {}
+      }
       localPriceCache.set(ticker, { price, timestamp: Date.now() });
     }
     return price;
@@ -144,7 +155,7 @@ async function getDashboardData() {
     sortedDates: Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)),
     groupedByDate,
     purchases,
-    debug: { source: lastDataSource, redis: isRedisConfigured }
+    debug: { source: lastDataSource, redis: !!redis }
   };
 }
 
@@ -158,4 +169,4 @@ app.get('/api/data', dataLimiter, async (req, res) => {
   } catch (error) { res.status(500).json({ error: 'Error' }); }
 });
 
-app.listen(PORT, () => console.log(`Puerto: ${PORT}`));
+app.listen(PORT, () => console.log(`Iniciado en puerto ${PORT}`));
