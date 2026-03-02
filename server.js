@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const { rateLimit } = require('express-rate-limit');
+const { kv } = require('@vercel/kv');
 const { renderPage } = require('./views/renderPage');
 
 const app = express();
@@ -10,20 +11,20 @@ const PORT = process.env.PORT || 3000;
 
 // --- Seguridad y Middleware ---
 
-// 1. Helmet: Cabeceras de seguridad (con ajuste para permitir scripts inline de modo oscuro)
+// 1. Helmet: Cabeceras de seguridad
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      "script-src": ["'self'", "'unsafe-inline'"], // Permitir el script de modo oscuro
+      "script-src": ["'self'", "'unsafe-inline'"], 
     },
   },
 }));
 
-// 2. CORS: Restringir origen (puedes configurar ALLOWED_ORIGINS en vercel)
+// 2. CORS: Restringir origen
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000', /\.vercel\.app$/]; // Permite localhost y cualquier subdominio de vercel
+  : ['http://localhost:3000', /\.vercel\.app$/];
 
 app.use(cors({
   origin: allowedOrigins,
@@ -31,10 +32,10 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// 3. Rate Limit: Prevenir fuerza bruta y abuso de APIs
+// 3. Rate Limit
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  limit: 100, // Límite general
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: 'Demasiadas solicitudes. Por favor, intente de nuevo más tarde.'
@@ -42,14 +43,18 @@ const globalLimiter = rateLimit({
 
 const dataLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30, // Solo 30 refrescos de datos cada 15 min por IP
+  limit: 30,
   message: 'Has alcanzado el límite de actualización de datos. Por favor, espera 15 minutos.'
 });
 
 app.use(globalLimiter);
-app.use('/api/data', dataLimiter);
-
 app.use(express.static('public'));
+
+// --- Lógica de Caché y Datos ---
+
+const isRedisConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const localPriceCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function fetchPurchases() {
   const response = await fetch(process.env.API_URL, {
@@ -60,11 +65,7 @@ async function fetchPurchases() {
       'Content-Type': 'application/json'
     }
   });
-
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-  }
-
+  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
   return await response.json();
 }
 
@@ -77,76 +78,47 @@ async function fetchTotalSummary() {
       'Content-Type': 'application/json'
     }
   });
+  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+  return await response.json();
+}
 
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-  const { kv } = require('@vercel/kv');
-  const { renderPage } = require('./views/renderPage');
-
-  const app = express();
-  const PORT = process.env.PORT || 3000;
-
-  // Caché de respaldo en memoria (para desarrollo local o si falla Redis)
-  const localPriceCache = new Map();
-  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
-
-  async function fetchCurrentPrice(ticker) {
-    const cacheKey = `price:${ticker}`;
-
-    try {
-      // 1. Intentar obtener de Redis (Vercel KV)
-      let cached = await kv.get(cacheKey);
-
-      // 2. Si no hay Redis o falla, buscar en caché local (solo para desarrollo local)
-      if (!cached && localPriceCache.has(ticker)) {
-        const localData = localPriceCache.get(ticker);
-        if (Date.now() - localData.timestamp < CACHE_TTL_MS) {
-          cached = localData.price;
-        }
-      }
-
-      if (cached) return cached;
-
-      // 3. Si no hay caché, consultar API externa
-      const marketSuffix = process.env.MARKET_SUFFIX || '';
-      const fullTicker = `${ticker}${marketSuffix}`;
-      const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-
-      if (!response.ok) {
-        console.warn(`Price API failed for ${fullTicker}: ${response.status}`);
-        return null;
-      }
-
-      const data = await response.json();
-      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
-
-      if (price !== null) {
-        // 4. Guardar en Redis con expiración automática (5 minutos)
-        try {
-          await kv.set(cacheKey, price, { ex: 300 }); // ex: 300 segundos = 5 min
-        } catch (e) {
-          // Si Redis falla, guardar en memoria local como respaldo
-          localPriceCache.set(ticker, { price, timestamp: Date.now() });
-        }
-      }
-      return price;
-    } catch (error) {
-      console.warn(`Error en sistema de precios para ${ticker}:`, error.message);
-      return null;
+async function fetchCurrentPrice(ticker) {
+  const cacheKey = `price:${ticker}`;
+  try {
+    let cached = null;
+    if (isRedisConfigured) {
+      try { cached = await kv.get(cacheKey); } catch (e) { console.warn('Redis error'); }
     }
+    if (!cached && localPriceCache.has(ticker)) {
+      const d = localPriceCache.get(ticker);
+      if (Date.now() - d.timestamp < CACHE_TTL_MS) cached = d.price;
+    }
+    if (cached) return cached;
+
+    const fullTicker = `${ticker}${process.env.MARKET_SUFFIX || ''}`;
+    const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
+
+    if (price !== null) {
+      if (isRedisConfigured) {
+        try { await kv.set(cacheKey, price, { ex: 300 }); } catch (e) {}
+      }
+      localPriceCache.set(ticker, { price, timestamp: Date.now() });
+    }
+    return price;
+  } catch (error) {
+    return null;
   }
+}
 
 async function fetchAllCurrentPrices(tickers) {
-  const pricePromises = tickers.map(ticker =>
+  const results = await Promise.all(tickers.map(ticker => 
     fetchCurrentPrice(ticker).then(price => ({ ticker, price }))
-  );
-
-  const results = await Promise.all(pricePromises);
-
+  ));
   return results.reduce((acc, { ticker, price }) => {
     acc[ticker] = price;
     return acc;
@@ -156,12 +128,10 @@ async function fetchAllCurrentPrices(tickers) {
 async function getDashboardData() {
   const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
 
-  const groupedByDate = purchases.reduce((groups, purchase) => {
-    const date = purchase.purchase_date;
-    if (!groups[date]) {
-      groups[date] = [];
-    }
-    groups[date].push(purchase);
+  const groupedByDate = purchases.reduce((groups, p) => {
+    const d = p.purchase_date;
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(p);
     return groups;
   }, {});
 
@@ -176,61 +146,49 @@ async function getDashboardData() {
     totalCost: item.total_investment || 0
   })).sort((a, b) => a.ticker.localeCompare(b.ticker));
 
-  const tickers = tickerSummary.map(item => item.ticker);
-  const currentPrices = await fetchAllCurrentPrices(tickers);
-
+  const currentPrices = await fetchAllCurrentPrices(tickerSummary.map(item => item.ticker));
   tickerSummary.forEach(item => {
     item.currentPrice = currentPrices[item.ticker] || null;
   });
 
-  const groupedByType = purchases.reduce((groups, purchase) => {
-    const type = purchase.type || 'Sin tipo';
-    if (!groups[type]) {
-      groups[type] = {
-        type: type,
-        totalCost: 0,
-        count: 0
-      };
-    }
-    groups[type].totalCost += (purchase.purchase_price * purchase.purchase_amount);
-    groups[type].count++;
+  const groupedByType = purchases.reduce((groups, p) => {
+    const t = p.type || 'Sin tipo';
+    if (!groups[t]) groups[t] = { type: t, totalCost: 0, count: 0 };
+    groups[t].totalCost += (p.purchase_price * p.purchase_amount);
+    groups[t].count++;
     return groups;
   }, {});
 
-  const typeSummary = Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type));
-
   return {
     tickerSummary,
-    typeSummary,
+    typeSummary: Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type)),
     sortedDates,
     groupedByDate,
     purchases
   };
 }
 
+// --- Rutas ---
+
 app.get('/', (req, res) => {
-  // Renderiza el shell inmediatamente sin esperar datos
-  const html = renderPage();
-  res.send(html);
+  res.send(renderPage());
 });
 
-app.get('/api/data', async (req, res) => {
+app.get('/api/data', dataLimiter, async (req, res) => {
   try {
     const data = await getDashboardData();
     res.json(data);
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    res.status(500).json({ error: 'Error al obtener los datos', details: error.message });
+    res.status(500).json({ error: 'Error al obtener datos' });
   }
 });
 
 app.get('/api/purchases', async (req, res) => {
   try {
-    const purchases = await fetchPurchases();
-    res.json(purchases);
+    const p = await fetchPurchases();
+    res.json(p);
   } catch (error) {
-    console.error('Error fetching purchases:', error);
-    res.status(500).json({ error: 'Error al obtener las compras', details: error.message });
+    res.status(500).json({ error: 'Error al obtener compras' });
   }
 });
 
