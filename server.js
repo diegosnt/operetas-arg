@@ -9,9 +9,7 @@ const { renderPage } = require('./views/renderPage');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Seguridad y Middleware ---
-
-// 1. Helmet: Cabeceras de seguridad
+// --- Seguridad ---
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -21,38 +19,34 @@ app.use(helmet({
   },
 }));
 
-// 2. CORS: Restringir origen
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:3000', /\.vercel\.app$/];
 
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET'],
-  optionsSuccessStatus: 200
-}));
+app.use(cors({ origin: allowedOrigins, methods: ['GET'] }));
 
-// 3. Rate Limit
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
   standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: 'Demasiadas solicitudes. Por favor, intente de nuevo más tarde.'
+  legacyHeaders: false
 });
 
 const dataLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
-  message: 'Has alcanzado el límite de actualización de datos. Por favor, espera 15 minutos.'
+  limit: 30
 });
 
 app.use(globalLimiter);
 app.use(express.static('public'));
 
-// --- Lógica de Caché y Datos ---
+// --- Lógica de Datos y Redis ---
 
-// Detección de Redis (Vercel KV o Upstash Marketplace)
+// Diagnóstico de variables en consola de Vercel
+console.log('--- Redis Config ---');
+console.log('UPSTASH_REST_URL:', process.env.UPSTASH_REDIS_REST_URL ? 'OK' : 'MISS');
+console.log('KV_REST_URL:', process.env.KV_REST_API_URL ? 'OK' : 'MISS');
+
 const isRedisConfigured = !!(
   (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) || 
   (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -60,30 +54,19 @@ const isRedisConfigured = !!(
 
 const localPriceCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
+let lastDataSource = 'API Directa';
 
 async function fetchPurchases() {
   const response = await fetch(process.env.API_URL, {
-    method: 'GET',
-    headers: {
-      'apikey': process.env.API_KEY,
-      'Authorization': `Bearer ${process.env.API_KEY}`,
-      'Content-Type': 'application/json'
-    }
+    headers: { 'apikey': process.env.API_KEY, 'Authorization': `Bearer ${process.env.API_KEY}`, 'Content-Type': 'application/json' }
   });
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
   return await response.json();
 }
 
 async function fetchTotalSummary() {
   const response = await fetch(process.env.API_URL_TOTAL, {
-    method: 'GET',
-    headers: {
-      'apikey': process.env.API_KEY,
-      'Authorization': `Bearer ${process.env.API_KEY}`,
-      'Content-Type': 'application/json'
-    }
+    headers: { 'apikey': process.env.API_KEY, 'Authorization': `Bearer ${process.env.API_KEY}`, 'Content-Type': 'application/json' }
   });
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
   return await response.json();
 }
 
@@ -94,48 +77,41 @@ async function fetchCurrentPrice(ticker) {
     if (isRedisConfigured) {
       try { 
         cached = await kv.get(cacheKey); 
-      } catch (e) { 
-        console.warn(`Redis fetch error for ${ticker}:`, e.message); 
-      }
+        if (cached) lastDataSource = 'Redis (Persistente)';
+      } catch (e) { console.error('Redis error'); }
     }
     if (!cached && localPriceCache.has(ticker)) {
       const d = localPriceCache.get(ticker);
-      if (Date.now() - d.timestamp < CACHE_TTL_MS) cached = d.price;
+      if (Date.now() - d.timestamp < CACHE_TTL_MS) {
+        cached = d.price;
+        lastDataSource = 'Memoria (Volátil)';
+      }
     }
     if (cached) return cached;
 
+    lastDataSource = 'API (Yahoo/Market)';
     const fullTicker = `${ticker}${process.env.MARKET_SUFFIX || ''}`;
     const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!response.ok) return null;
-
     const data = await response.json();
     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
 
     if (price !== null) {
-      if (isRedisConfigured) {
-        try { await kv.set(cacheKey, price, { ex: 300 }); } catch (e) {}
-      }
+      if (isRedisConfigured) try { await kv.set(cacheKey, price, { ex: 300 }); } catch (e) {}
       localPriceCache.set(ticker, { price, timestamp: Date.now() });
     }
     return price;
-  } catch (error) {
-    return null;
-  }
+  } catch (error) { return null; }
 }
 
 async function fetchAllCurrentPrices(tickers) {
-  const results = await Promise.all(tickers.map(ticker => 
-    fetchCurrentPrice(ticker).then(price => ({ ticker, price }))
-  ));
-  return results.reduce((acc, { ticker, price }) => {
-    acc[ticker] = price;
-    return acc;
-  }, {});
+  const results = await Promise.all(tickers.map(t => fetchCurrentPrice(t).then(p => ({ t, p }))));
+  return results.reduce((acc, { t, p }) => { acc[t] = p; return acc; }, {});
 }
 
 async function getDashboardData() {
   const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
+  const currentPrices = await fetchAllCurrentPrices(totalSummary.map(item => item.ticker));
 
   const groupedByDate = purchases.reduce((groups, p) => {
     const d = p.purchase_date;
@@ -144,21 +120,15 @@ async function getDashboardData() {
     return groups;
   }, {});
 
-  const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
-
   const tickerSummary = totalSummary.map(item => ({
     ticker: item.ticker,
     name: item.name,
     type: item.type,
     totalAmount: item.total_purchase_amount || 0,
     averagePrice: item.average_purchase_price || 0,
-    totalCost: item.total_investment || 0
+    totalCost: item.total_investment || 0,
+    currentPrice: currentPrices[item.ticker] || null
   })).sort((a, b) => a.ticker.localeCompare(b.ticker));
-
-  const currentPrices = await fetchAllCurrentPrices(tickerSummary.map(item => item.ticker));
-  tickerSummary.forEach(item => {
-    item.currentPrice = currentPrices[item.ticker] || null;
-  });
 
   const groupedByType = purchases.reduce((groups, p) => {
     const t = p.type || 'Sin tipo';
@@ -171,36 +141,21 @@ async function getDashboardData() {
   return {
     tickerSummary,
     typeSummary: Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type)),
-    sortedDates,
+    sortedDates: Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)),
     groupedByDate,
-    purchases
+    purchases,
+    debug: { source: lastDataSource, redis: isRedisConfigured }
   };
 }
 
 // --- Rutas ---
-
-app.get('/', (req, res) => {
-  res.send(renderPage());
-});
+app.get('/', (req, res) => res.send(renderPage()));
 
 app.get('/api/data', dataLimiter, async (req, res) => {
   try {
     const data = await getDashboardData();
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener datos' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Error' }); }
 });
 
-app.get('/api/purchases', async (req, res) => {
-  try {
-    const p = await fetchPurchases();
-    res.json(p);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener compras' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Puerto: ${PORT}`));
