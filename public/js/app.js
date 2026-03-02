@@ -447,4 +447,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const darkIcon = document.querySelector('.dark-icon');
   if (lightIcon) lightIcon.style.display = isDark ? 'none' : 'inline';
   if (darkIcon) darkIcon.style.display = isDark ? 'inline' : 'none';
+
+  // Registrar Service Worker para PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registrado', reg))
+        .catch(err => console.warn('SW error', err));
+    });
+  }
 });

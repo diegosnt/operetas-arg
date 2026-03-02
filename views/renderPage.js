@@ -7,6 +7,7 @@ function renderPage() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Operaciones AR - Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/styles.css">
   <script>if (localStorage.getItem('darkMode') === 'enabled') document.documentElement.classList.add('dark-mode');</script>
 </head>

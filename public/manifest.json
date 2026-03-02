@@ -1,0 +1,17 @@
+{
+  "name": "Operaciones AR",
+  "short_name": "Operetas",
+  "description": "Seguimiento de inversiones en el mercado argentino",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#4f46e6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
