@@ -80,48 +80,65 @@ async function fetchTotalSummary() {
 
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-  }
+  const { kv } = require('@vercel/kv');
+  const { renderPage } = require('./views/renderPage');
 
-  return await response.json();
-}
+  const app = express();
+  const PORT = process.env.PORT || 3000;
 
-const priceCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+  // Caché de respaldo en memoria (para desarrollo local o si falla Redis)
+  const localPriceCache = new Map();
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-async function fetchCurrentPrice(ticker) {
-  const cached = priceCache.get(ticker);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.price;
-  }
-  try {
-    const marketSuffix = process.env.MARKET_SUFFIX || '';
-    const fullTicker = `${ticker}${marketSuffix}`;
-    const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
+  async function fetchCurrentPrice(ticker) {
+    const cacheKey = `price:${ticker}`;
+
+    try {
+      // 1. Intentar obtener de Redis (Vercel KV)
+      let cached = await kv.get(cacheKey);
+
+      // 2. Si no hay Redis o falla, buscar en caché local (solo para desarrollo local)
+      if (!cached && localPriceCache.has(ticker)) {
+        const localData = localPriceCache.get(ticker);
+        if (Date.now() - localData.timestamp < CACHE_TTL_MS) {
+          cached = localData.price;
+        }
       }
-    });
 
-    if (!response.ok) {
-      console.warn(`Price API failed for ${fullTicker}: ${response.status}`);
+      if (cached) return cached;
+
+      // 3. Si no hay caché, consultar API externa
+      const marketSuffix = process.env.MARKET_SUFFIX || '';
+      const fullTicker = `${ticker}${marketSuffix}`;
+      const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+
+      if (!response.ok) {
+        console.warn(`Price API failed for ${fullTicker}: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
+
+      if (price !== null) {
+        // 4. Guardar en Redis con expiración automática (5 minutos)
+        try {
+          await kv.set(cacheKey, price, { ex: 300 }); // ex: 300 segundos = 5 min
+        } catch (e) {
+          // Si Redis falla, guardar en memoria local como respaldo
+          localPriceCache.set(ticker, { price, timestamp: Date.now() });
+        }
+      }
+      return price;
+    } catch (error) {
+      console.warn(`Error en sistema de precios para ${ticker}:`, error.message);
       return null;
     }
-
-    const data = await response.json();
-    const regularMarketPrice = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    const price = regularMarketPrice || null;
-
-    if (price !== null) {
-      priceCache.set(ticker, { price, timestamp: Date.now() });
-    }
-    return price;
-  } catch (error) {
-    console.warn(`Error fetching price for ${ticker}:`, error.message);
-    return null;
   }
-}
 
 async function fetchAllCurrentPrices(tickers) {
   const pricePromises = tickers.map(ticker =>
