@@ -1,315 +1,115 @@
-function renderPage(data) {
-  const { tickerSummary, typeSummary, sortedDates, groupedByDate, purchases } = data;
-
-  const formatNumber = (num) => {
-    return num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  // Totales del resumen — calculados una sola vez
-  const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
-  const totalCurrent = tickerSummary.reduce((sum, item) => {
-    return sum + (item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0);
-  }, 0);
-  const totalProfit = totalCurrent - totalCost;
-  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-  const totalProfitClass = totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
-  const hasTotalCurrent = totalCurrent > 0;
-
+function renderPage() {
   return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Operaciones AR</title>
+  <title>Operaciones AR - Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/css/water.min.css">
   <link rel="stylesheet" href="/css/styles.css">
   <script>if (localStorage.getItem('darkMode') === 'enabled') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
-  <button class="dark-mode-toggle" onclick="toggleDarkMode()">
-    <span class="light-icon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-      </svg>
-    </span>
-    <span class="dark-icon" style="display: none;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="5"></circle>
-        <line x1="12" y1="1" x2="12" y2="3"></line>
-        <line x1="12" y1="21" x2="12" y2="23"></line>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-        <line x1="1" y1="12" x2="3" y2="12"></line>
-        <line x1="21" y1="12" x2="23" y2="12"></line>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-      </svg>
-    </span>
-  </button>
-  <div>
-    <h1 style="text-align: center;">Registro de Operaciones</h1>
-
-    <div class="charts-section" style="margin-bottom: 0.5rem;">
-      <div class="charts-header summary-header" onclick="toggleCollapsible(this)">
-        <h2>Resumen</h2>
-        <span class="toggle-icon">▼</span>
+  <header class="main-header">
+    <div class="container header-inner">
+      <h1>Operaciones AR</h1>
+      <div class="header-actions">
+        <button id="refresh-btn" class="action-btn" title="Actualizar Datos" onclick="fetchDashboardData()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+        </button>
+        <button class="dark-mode-toggle" title="Cambiar Modo" onclick="toggleDarkMode()">
+          <span class="light-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </span>
+          <span class="dark-icon" style="display: none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          </span>
+        </button>
       </div>
-      <div class="charts-content summary-content">
-        <div class="summary-table-container" style="box-shadow: none; border: none; padding: 0.75rem 0;">
-          <table style="font-size: 0.65rem;">
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Tipo</th>
-            <th>Nombre</th>
-            <th>Precio Prom.</th>
-            <th>Precio Actual</th>
-            <th>Cant.</th>
-            <th>Total</th>
-            <th>Total Actual</th>
-            <th>Ganancia</th>
-            <th>Ganancia %</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tickerSummary.map(item => {
-            const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : null;
-            const profit = currentTotal !== null ? currentTotal - item.totalCost : null;
-            const profitPercentage = profit !== null && item.totalCost > 0 ? (profit / item.totalCost) * 100 : null;
-            const profitClass = profit !== null ? (profit >= 0 ? 'profit-positive' : 'profit-negative') : '';
+    </div>
+  </header>
 
-            return `
-            <tr>
-              <td class="ticker">${item.ticker}</td>
-              <td>${item.type || '-'}</td>
-              <td>${item.name}</td>
-              <td>$${formatNumber(item.averagePrice)}</td>
-              <td>${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</td>
-              <td>${item.totalAmount.toLocaleString('es-AR')}</td>
-              <td>$${formatNumber(item.totalCost)}</td>
-              <td>${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</td>
-              <td class="${profitClass}" style="font-weight: bold;">${profit !== null ? '$' + formatNumber(profit) : 'N/A'}</td>
-              <td class="${profitClass}" style="font-weight: bold;">${profitPercentage !== null ? formatNumber(profitPercentage) + '%' : 'N/A'}</td>
-            </tr>
-            `;
-          }).join('')}
-          <tr class="subtotal">
-            <td colspan="5"></td>
-            <td>${tickerSummary.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString('es-AR')}</td>
-            <td>$${formatNumber(totalCost)}</td>
-            <td>${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</td>
-            <td class="${totalProfitClass}" style="font-weight: bold;">${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}</td>
-            <td class="${totalProfitClass}" style="font-weight: bold;">${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Vista móvil en formato de tarjetas -->
-      <div class="mobile-cards">
-        ${tickerSummary.map(item => {
-          const currentTotal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : null;
-          const profit = currentTotal !== null ? currentTotal - item.totalCost : null;
-          const profitPercentage = profit !== null && item.totalCost > 0 ? (profit / item.totalCost) * 100 : null;
-          const profitClass = profit !== null ? (profit >= 0 ? 'profit-positive' : 'profit-negative') : '';
-
-          return `
-          <div class="mobile-card">
-            <div class="mobile-card-ticker">${item.ticker} - ${item.type || 'N/A'}</div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Nombre:</span>
-              <span class="mobile-card-value">${item.name}</span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Precio Prom:</span>
-              <span class="mobile-card-value">$${formatNumber(item.averagePrice)}</span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Precio Actual:</span>
-              <span class="mobile-card-value">${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Cantidad:</span>
-              <span class="mobile-card-value">${item.totalAmount.toLocaleString('es-AR')}</span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Total:</span>
-              <span class="mobile-card-value"><strong>$${formatNumber(item.totalCost)}</strong></span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Total Actual:</span>
-              <span class="mobile-card-value"><strong>${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</strong></span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Ganancia:</span>
-              <span class="mobile-card-value ${profitClass}" style="font-weight: bold;">${profit !== null ? '$' + formatNumber(profit) : 'N/A'}</span>
-            </div>
-            <div class="mobile-card-row">
-              <span class="mobile-card-label">Ganancia %:</span>
-              <span class="mobile-card-value ${profitClass}" style="font-weight: bold;">${profitPercentage !== null ? formatNumber(profitPercentage) + '%' : 'N/A'}</span>
-            </div>
-          </div>
-          `;
-        }).join('')}
-        <div class="mobile-card mobile-card-total">
-          <div class="mobile-card-row">
-            <span class="mobile-card-label">Total Invertido:</span>
-            <span class="mobile-card-value"><strong>$${formatNumber(totalCost)}</strong></span>
-          </div>
-          <div class="mobile-card-row">
-            <span class="mobile-card-label">Total Actual:</span>
-            <span class="mobile-card-value"><strong>${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</strong></span>
-          </div>
-          <div class="mobile-card-row">
-            <span class="mobile-card-label">Ganancia Total:</span>
-            <span class="mobile-card-value ${totalProfitClass}" style="font-weight: bold;"><strong>${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}</strong></span>
-          </div>
-          <div class="mobile-card-row">
-            <span class="mobile-card-label">Ganancia % Total:</span>
-            <span class="mobile-card-value ${totalProfitClass}" style="font-weight: bold;"><strong>${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}</strong></span>
-          </div>
-        </div>
+  <main class="container dashboard-container">
+    <!-- KPI Cards - Siempre visibles por ser el resumen vital -->
+    <div class="kpi-grid">
+      <div class="kpi-card" id="kpi-invested">
+        <div class="kpi-label">Inversión Total</div>
+        <div class="kpi-value">--</div>
       </div>
-        </div>
+      <div class="kpi-card" id="kpi-current">
+        <div class="kpi-label">Valor Actual</div>
+        <div class="kpi-value">--</div>
+      </div>
+      <div class="kpi-card" id="kpi-profit">
+        <div class="kpi-label">Ganancia Total</div>
+        <div class="kpi-value">--</div>
+      </div>
+      <div class="kpi-card" id="kpi-pct">
+        <div class="kpi-label">Rendimiento</div>
+        <div class="kpi-value">--</div>
       </div>
     </div>
 
-    <div class="charts-section">
+    <!-- Resumen Table - Ahora colapsado por defecto -->
+    <section class="charts-section">
       <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
-        <h2>Gráficos de Distribución</h2>
+        <h2>Cartera de Activos</h2>
         <span class="toggle-icon">▼</span>
       </div>
       <div class="charts-content collapsed">
-        <div class="summary-grid" style="margin: 0;">
-          <div class="summary-chart-container" style="box-shadow: none;">
-            <h3 style="font-size: 0.9rem; margin-top: 0; margin-bottom: 0.25rem;">Distribución por Ticker</h3>
-            <canvas id="chartByTicker"></canvas>
-          </div>
-
-          <div class="summary-chart-container" style="box-shadow: none;">
-            <h3 style="font-size: 0.9rem; margin-top: 0; margin-bottom: 0.25rem;">Distribución por Tipo</h3>
-            <canvas id="chartByType"></canvas>
-          </div>
-        </div>
+        <div id="summary-table-container" class="loading-skeleton"></div>
       </div>
-    </div>
+    </section>
 
-    <div class="charts-section">
+    <!-- Analysis Charts - Ahora colapsado por defecto -->
+    <section class="charts-section">
       <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
-        <h2>Operaciones por Fecha</h2>
+        <h2>Rendimiento y Distribución</h2>
         <span class="toggle-icon">▼</span>
       </div>
       <div class="charts-content collapsed">
-        ${sortedDates.map(date => {
-          const datePurchases = groupedByDate[date].slice().sort((a, b) => a.ticker.localeCompare(b.ticker));
-          const dateTotal = datePurchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0);
-          const itemCount = datePurchases.length;
-
-          return `
-            <div class="date-group">
-              <div class="date-header collapsed" onclick="toggleCollapsible(this)">
-                <div>
-                  <h3>${new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
-                  <div class="date-info">
-                    <span>${itemCount} compra${itemCount !== 1 ? 's' : ''}</span>
-                    <span>Total: $${formatNumber(dateTotal)}</span>
-                  </div>
-                </div>
-                <span class="toggle-icon">▼</span>
-              </div>
-              <div class="date-content collapsed">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th>Tipo</th>
-                      <th>Nombre</th>
-                      <th>Precio</th>
-                      <th>Cantidad</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${datePurchases.map(p => `
-                      <tr>
-                        <td class="ticker">${p.ticker}</td>
-                        <td>${p.type || '-'}</td>
-                        <td>${p.name}</td>
-                        <td>$${formatNumber(p.purchase_price)}</td>
-                        <td>${p.purchase_amount.toLocaleString('es-AR')}</td>
-                        <td>$${formatNumber(p.purchase_price * p.purchase_amount)}</td>
-                      </tr>
-                    `).join('')}
-                    <tr class="subtotal">
-                      <td colspan="5">Subtotal del día</td>
-                      <td>$${formatNumber(dateTotal)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <!-- Vista móvil en formato de tarjetas para operaciones por fecha -->
-                <div class="mobile-cards">
-                  ${datePurchases.map(p => `
-                    <div class="mobile-card">
-                      <div class="mobile-card-ticker">${p.ticker}</div>
-                      <div class="mobile-card-row">
-                        <span class="mobile-card-label">Tipo:</span>
-                        <span class="mobile-card-value">${p.type || 'N/A'}</span>
-                      </div>
-                      <div class="mobile-card-row">
-                        <span class="mobile-card-label">Nombre:</span>
-                        <span class="mobile-card-value">${p.name}</span>
-                      </div>
-                      <div class="mobile-card-row">
-                        <span class="mobile-card-label">Precio:</span>
-                        <span class="mobile-card-value">$${formatNumber(p.purchase_price)}</span>
-                      </div>
-                      <div class="mobile-card-row">
-                        <span class="mobile-card-label">Cantidad:</span>
-                        <span class="mobile-card-value">${p.purchase_amount.toLocaleString('es-AR')}</span>
-                      </div>
-                      <div class="mobile-card-row">
-                        <span class="mobile-card-label">Total:</span>
-                        <span class="mobile-card-value"><strong>$${formatNumber(p.purchase_price * p.purchase_amount)}</strong></span>
-                      </div>
-                    </div>
-                  `).join('')}
-                  <div class="mobile-card mobile-card-total">
-                    <div class="mobile-card-row">
-                      <span class="mobile-card-label">Subtotal del día:</span>
-                      <span class="mobile-card-value"><strong>$${formatNumber(dateTotal)}</strong></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <div class="summary-grid">
+          <div class="summary-chart-container">
+            <h3>Distribución por Ticker (Costo)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chartByTicker"></canvas>
             </div>
-          `;
-        }).join('')}
+          </div>
+          <div class="summary-chart-container">
+            <h3>Distribución por Tipo de Activo</h3>
+            <div class="chart-wrapper">
+              <canvas id="chartByType"></canvas>
+            </div>
+          </div>
+          <div class="summary-chart-container" style="grid-column: 1 / -1;">
+            <h3>Ganancia / Pérdida por Activo ($)</h3>
+            <div class="chart-wrapper" style="min-height: 400px;">
+              <canvas id="chartPerformance"></canvas>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="total-card">
-      <strong>Total de operaciones:</strong> ${purchases.length} registros |
-      <strong>Total invertido:</strong> $${formatNumber(purchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0))}
-    </div>
-  </div>
+    <!-- Operations History - Ya estaba colapsado -->
+    <section class="charts-section">
+      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
+        <h2>Historial de Operaciones</h2>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="charts-content collapsed" id="history-container">
+        <!-- Rendered via app.js -->
+      </div>
+    </section>
+  </main>
+
+  <footer class="container">
+    <div id="footer-summary">Cargando datos del mercado...</div>
+  </footer>
 
   <script src="/js/chart.min.js"></script>
   <script src="/js/app.js"></script>
-  <script>
-    // Inicializar gráficos con datos del servidor
-    initializeCharts(
-      {
-        labels: ${JSON.stringify(tickerSummary.map(item => item.ticker))},
-        data: ${JSON.stringify(tickerSummary.map(item => parseFloat(item.totalCost.toFixed(2))))}
-      },
-      {
-        labels: ${JSON.stringify(typeSummary.map(item => item.type))},
-        data: ${JSON.stringify(typeSummary.map(item => parseFloat(item.totalCost.toFixed(2))))}
-      }
-    );
-  </script>
 </body>
 </html>
   `;

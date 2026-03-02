@@ -92,67 +92,74 @@ async function fetchAllCurrentPrices(tickers) {
   }, {});
 }
 
-app.get('/', async (req, res) => {
+async function getDashboardData() {
+  const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
+
+  const groupedByDate = purchases.reduce((groups, purchase) => {
+    const date = purchase.purchase_date;
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(purchase);
+    return groups;
+  }, {});
+
+  const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+
+  const tickerSummary = totalSummary.map(item => ({
+    ticker: item.ticker,
+    name: item.name,
+    type: item.type,
+    totalAmount: item.total_purchase_amount || 0,
+    averagePrice: item.average_purchase_price || 0,
+    totalCost: item.total_investment || 0
+  })).sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+  const tickers = tickerSummary.map(item => item.ticker);
+  const currentPrices = await fetchAllCurrentPrices(tickers);
+
+  tickerSummary.forEach(item => {
+    item.currentPrice = currentPrices[item.ticker] || null;
+  });
+
+  const groupedByType = purchases.reduce((groups, purchase) => {
+    const type = purchase.type || 'Sin tipo';
+    if (!groups[type]) {
+      groups[type] = {
+        type: type,
+        totalCost: 0,
+        count: 0
+      };
+    }
+    groups[type].totalCost += (purchase.purchase_price * purchase.purchase_amount);
+    groups[type].count++;
+    return groups;
+  }, {});
+
+  const typeSummary = Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type));
+
+  return {
+    tickerSummary,
+    typeSummary,
+    sortedDates,
+    groupedByDate,
+    purchases
+  };
+}
+
+app.get('/', (req, res) => {
+  // Renderiza el shell inmediatamente sin esperar datos
+  const html = renderPage();
+  res.send(html);
+});
+
+app.get('/api/data', async (req, res) => {
   try {
-    const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
-
-    const groupedByDate = purchases.reduce((groups, purchase) => {
-      const date = purchase.purchase_date;
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(purchase);
-      return groups;
-    }, {});
-
-    const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
-
-    const tickerSummary = totalSummary.map(item => ({
-      ticker: item.ticker,
-      name: item.name,
-      type: item.type,
-      totalAmount: item.total_purchase_amount || 0,
-      averagePrice: item.average_purchase_price || 0,
-      totalCost: item.total_investment || 0
-    })).sort((a, b) => a.ticker.localeCompare(b.ticker));
-
-    // Obtener precios actuales
-    const tickers = tickerSummary.map(item => item.ticker);
-    const currentPrices = await fetchAllCurrentPrices(tickers);
-
-    // Añadir precios actuales al tickerSummary
-    tickerSummary.forEach(item => {
-      item.currentPrice = currentPrices[item.ticker] || null;
-    });
-
-    const groupedByType = purchases.reduce((groups, purchase) => {
-      const type = purchase.type || 'Sin tipo';
-      if (!groups[type]) {
-        groups[type] = {
-          type: type,
-          totalCost: 0,
-          count: 0
-        };
-      }
-      groups[type].totalCost += purchase.purchase_price * purchase.purchase_amount;
-      groups[type].count++;
-      return groups;
-    }, {});
-
-    const typeSummary = Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type));
-
-    const html = renderPage({
-      tickerSummary,
-      typeSummary,
-      sortedDates,
-      groupedByDate,
-      purchases
-    });
-
-    res.send(html);
+    const data = await getDashboardData();
+    res.json(data);
   } catch (error) {
-    console.error('Error fetching purchases:', error);
-    res.status(500).send('<h1>Error al cargar las compras</h1><p>Ocurrió un error interno. Por favor, intentá de nuevo más tarde.</p>');
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({ error: 'Error al obtener los datos', details: error.message });
   }
 });
 
