@@ -15,10 +15,10 @@ function renderPage() {
     <div class="container header-inner">
       <h1>Operaciones AR</h1>
       <div class="header-actions">
-        <button id="refresh-btn" class="action-btn" title="Actualizar Datos" onclick="fetchDashboardData()">
+        <button id="refresh-btn" class="action-btn" title="Actualizar Datos">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
         </button>
-        <button class="dark-mode-toggle" title="Cambiar Modo" onclick="toggleDarkMode()">
+        <button id="theme-toggle-btn" class="dark-mode-toggle" title="Cambiar Modo">
           <span class="light-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
           </span>
@@ -31,7 +31,7 @@ function renderPage() {
   </header>
 
   <main class="container dashboard-container">
-    <!-- KPI Cards - Siempre visibles por ser el resumen vital -->
+    <!-- KPI Cards -->
     <div class="kpi-grid">
       <div class="kpi-card" id="kpi-invested">
         <div class="kpi-label">Inversión Total</div>
@@ -51,9 +51,9 @@ function renderPage() {
       </div>
     </div>
 
-    <!-- Resumen Table - Ahora colapsado por defecto -->
+    <!-- Resumen Table -->
     <section class="charts-section">
-      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
+      <div class="charts-header collapsed" data-collapsible>
         <h2>Cartera de Activos</h2>
         <span class="toggle-icon">▼</span>
       </div>
@@ -62,9 +62,9 @@ function renderPage() {
       </div>
     </section>
 
-    <!-- Analysis Charts - Ahora colapsado por defecto -->
+    <!-- Analysis Charts -->
     <section class="charts-section">
-      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
+      <div class="charts-header collapsed" data-collapsible>
         <h2>Rendimiento y Distribución</h2>
         <span class="toggle-icon">▼</span>
       </div>
@@ -92,9 +92,9 @@ function renderPage() {
       </div>
     </section>
 
-    <!-- Operations History - Ya estaba colapsado -->
+    <!-- Operations History -->
     <section class="charts-section">
-      <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
+      <div class="charts-header collapsed" data-collapsible>
         <h2>Historial de Operaciones</h2>
         <span class="toggle-icon">▼</span>
       </div>

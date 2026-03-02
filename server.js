@@ -1,9 +1,53 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const { rateLimit } = require('express-rate-limit');
 const { renderPage } = require('./views/renderPage');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- Seguridad y Middleware ---
+
+// 1. Helmet: Cabeceras de seguridad (con ajuste para permitir scripts inline de modo oscuro)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "'unsafe-inline'"], // Permitir el script de modo oscuro
+    },
+  },
+}));
+
+// 2. CORS: Restringir origen (puedes configurar ALLOWED_ORIGINS en vercel)
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:3000', /\.vercel\.app$/]; // Permite localhost y cualquier subdominio de vercel
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET'],
+  optionsSuccessStatus: 200
+}));
+
+// 3. Rate Limit: Prevenir fuerza bruta y abuso de APIs
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  limit: 100, // Límite general
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: 'Demasiadas solicitudes. Por favor, intente de nuevo más tarde.'
+});
+
+const dataLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30, // Solo 30 refrescos de datos cada 15 min por IP
+  message: 'Has alcanzado el límite de actualización de datos. Por favor, espera 15 minutos.'
+});
+
+app.use(globalLimiter);
+app.use('/api/data', dataLimiter);
 
 app.use(express.static('public'));
 

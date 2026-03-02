@@ -7,10 +7,29 @@ const formatNumber = (num) => {
   return num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-function toggleCollapsible(header) {
-  const content = header.nextElementSibling;
-  header.classList.toggle('collapsed');
-  content.classList.toggle('collapsed');
+// --- Manejo de Eventos (Refactorizado para Seguridad) ---
+
+function handleGlobalClicks(e) {
+  // 1. Toggle Colapsables (Delegación de eventos)
+  const collapsibleHeader = e.target.closest('[data-collapsible]');
+  if (collapsibleHeader) {
+    const content = collapsibleHeader.nextElementSibling;
+    collapsibleHeader.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+    return;
+  }
+
+  // 2. Botón Refrescar
+  if (e.target.closest('#refresh-btn')) {
+    fetchDashboardData();
+    return;
+  }
+
+  // 3. Botón Modo Oscuro
+  if (e.target.closest('#theme-toggle-btn')) {
+    toggleDarkMode();
+    return;
+  }
 }
 
 function toggleDarkMode() {
@@ -21,12 +40,12 @@ function toggleDarkMode() {
   const darkIcon = document.querySelector('.dark-icon');
   
   if (isDark) {
-    lightIcon.style.display = 'none';
-    darkIcon.style.display = 'inline';
+    if (lightIcon) lightIcon.style.display = 'none';
+    if (darkIcon) darkIcon.style.display = 'inline';
     localStorage.setItem('darkMode', 'enabled');
   } else {
-    lightIcon.style.display = 'inline';
-    darkIcon.style.display = 'none';
+    if (lightIcon) lightIcon.style.display = 'inline';
+    if (darkIcon) darkIcon.style.display = 'none';
     localStorage.setItem('darkMode', 'disabled');
   }
   
@@ -47,7 +66,8 @@ async function fetchDashboardData() {
     localStorage.setItem('lastDashboardData', JSON.stringify(dashboardData));
   } catch (error) {
     console.error('Fetch error:', error);
-    document.getElementById('footer-summary').innerText = 'Error al actualizar datos. Reintentando...';
+    const footer = document.getElementById('footer-summary');
+    if (footer) footer.innerText = 'Error al actualizar datos. Reintentando...';
   } finally {
     if (refreshBtn) refreshBtn.classList.remove('spinning');
   }
@@ -73,7 +93,6 @@ function renderDashboard() {
   renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit, totalProfitPct);
   renderHistory(sortedDates, groupedByDate);
   
-  // Preparar datos para gráficos
   const performanceData = tickerSummary.map(item => {
     const currentVal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
     return {
@@ -97,15 +116,20 @@ function renderDashboard() {
     }
   );
   
-  document.getElementById('footer-summary').innerHTML = `
-    <strong>${purchases.length}</strong> operaciones registradas | 
-    Actualizado: ${new Date().toLocaleTimeString()}
-  `;
+  const footer = document.getElementById('footer-summary');
+  if (footer) {
+    footer.innerHTML = `
+      <strong>${purchases.length}</strong> operaciones registradas | 
+      Actualizado: ${new Date().toLocaleTimeString()}
+    `;
+  }
 }
 
 function updateKPI(id, value, className) {
   const el = document.getElementById(id);
+  if (!el) return;
   const valEl = el.querySelector('.kpi-value');
+  if (!valEl) return;
   valEl.innerText = value;
   if (className) {
     valEl.className = 'kpi-value ' + className;
@@ -114,6 +138,7 @@ function updateKPI(id, value, className) {
 
 function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit, totalProfitPct) {
   const container = document.getElementById('summary-table-container');
+  if (!container) return;
   container.classList.remove('loading-skeleton');
   
   const hasTotalCurrent = totalCurrent > 0;
@@ -221,9 +246,9 @@ function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit,
 
 function renderHistory(sortedDates, groupedByDate) {
   const container = document.getElementById('history-container');
+  if (!container) return;
   
   const capitalizeDate = (str) => {
-    // Capitaliza la primera letra (día de la semana) y la primera letra del mes tras el "de "
     return str.charAt(0).toUpperCase() + str.slice(1).replace(/de (\w)/g, (match, p1) => `de ${p1.toUpperCase()}`);
   };
   
@@ -235,7 +260,7 @@ function renderHistory(sortedDates, groupedByDate) {
 
     return `
       <div class="history-date-item">
-        <div class="charts-header collapsed" onclick="toggleCollapsible(this)">
+        <div class="charts-header collapsed" data-collapsible>
           <div>
             <h3>${dateStr}</h3>
             <div class="date-info">
@@ -316,66 +341,75 @@ function initializeCharts(tickerData, typeData, perfData) {
   if (chartByType) chartByType.destroy();
   if (chartPerformance) chartPerformance.destroy();
 
-  chartByTicker = new Chart(document.getElementById('chartByTicker'), {
-    type: 'doughnut',
-    data: {
-      labels: tickerData.labels,
-      datasets: [{
-        data: tickerData.data,
-        backgroundColor: ['#0ea5e9', '#2563eb', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
-        borderWidth: 0
-      }]
-    },
-    options: pieOptions
-  });
+  const ctxTicker = document.getElementById('chartByTicker');
+  if (ctxTicker) {
+    chartByTicker = new Chart(ctxTicker, {
+      type: 'doughnut',
+      data: {
+        labels: tickerData.labels,
+        datasets: [{
+          data: tickerData.data,
+          backgroundColor: ['#4f46e6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+          borderWidth: 0
+        }]
+      },
+      options: pieOptions
+    });
+  }
 
-  chartByType = new Chart(document.getElementById('chartByType'), {
-    type: 'pie',
-    data: {
-      labels: typeData.labels,
-      datasets: [{
-        data: typeData.data,
-        backgroundColor: ['#0ea5e9', '#2563eb', '#14b8a6'],
-        borderWidth: 0
-      }]
-    },
-    options: pieOptions
-  });
+  const ctxType = document.getElementById('chartByType');
+  if (ctxType) {
+    chartByType = new Chart(ctxType, {
+      type: 'pie',
+      data: {
+        labels: typeData.labels,
+        datasets: [{
+          data: typeData.data,
+          backgroundColor: ['#4f46e6', '#6366f1', '#10b981'],
+          borderWidth: 0
+        }]
+      },
+      options: pieOptions
+    });
+  }
 
-  chartPerformance = new Chart(document.getElementById('chartPerformance'), {
-    type: 'bar',
-    data: {
-      labels: perfData.labels,
-      datasets: [{
-        label: 'Ganancia/Pérdida ($)',
-        data: perfData.data,
-        backgroundColor: perfData.data.map(v => v >= 0 ? '#22c55e' : '#ef4444'),
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { 
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ` $${formatNumber(ctx.parsed.y)}`
+  const ctxPerf = document.getElementById('chartPerformance');
+  if (ctxPerf) {
+    chartPerformance = new Chart(ctxPerf, {
+      type: 'bar',
+      data: {
+        labels: perfData.labels,
+        datasets: [{
+          label: 'Ganancia/Pérdida ($)',
+          data: perfData.data,
+          backgroundColor: perfData.data.map(v => v >= 0 ? '#10b981' : '#ef4444'),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` $${formatNumber(ctx.parsed.y)}`
+            }
+          }
+        },
+        scales: {
+          y: { 
+            grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
+            ticks: { color: textColor }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor }
           }
         }
-      },
-      scales: {
-        y: { 
-          grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
-          ticks: { color: textColor }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { color: textColor }
-        }
       }
-    }
-  });
+    });
+  }
 }
 
 function updateChartColors() {
@@ -396,14 +430,21 @@ function updateChartColors() {
   });
 }
 
+// Initialization
 document.addEventListener('DOMContentLoaded', () => {
+  // Configurar escuchador global de clics (Delegación)
+  document.body.addEventListener('click', handleGlobalClicks);
+
   const cachedData = localStorage.getItem('lastDashboardData');
   if (cachedData) {
     dashboardData = JSON.parse(cachedData);
     renderDashboard();
   }
   fetchDashboardData();
+  
   const isDark = document.documentElement.classList.contains('dark-mode');
-  document.querySelector('.light-icon').style.display = isDark ? 'none' : 'inline';
-  document.querySelector('.dark-icon').style.display = isDark ? 'inline' : 'none';
+  const lightIcon = document.querySelector('.light-icon');
+  const darkIcon = document.querySelector('.dark-icon');
+  if (lightIcon) lightIcon.style.display = isDark ? 'none' : 'inline';
+  if (darkIcon) darkIcon.style.display = isDark ? 'inline' : 'none';
 });
