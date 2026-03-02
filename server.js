@@ -42,23 +42,16 @@ app.use(express.static('public'));
 
 // --- Lógica de Datos y Redis ---
 
-// Conexión inteligente a Redis
 let redis = null;
 if (process.env.REDIS_URL) {
   try {
-    redis = new Redis(process.env.REDIS_URL, {
-      connectTimeout: 5000,
-      maxRetriesPerRequest: 1
-    });
-    redis.on('error', (err) => console.warn('Redis connection error:', err.message));
-  } catch (e) {
-    console.warn('Could not initialize Redis');
-  }
+    redis = new Redis(process.env.REDIS_URL, { connectTimeout: 5000, maxRetriesPerRequest: 1 });
+    redis.on('error', () => {}); 
+  } catch (e) {}
 }
 
 const localPriceCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-let lastDataSource = 'Ninguna';
 
 async function fetchPurchases() {
   const response = await fetch(process.env.API_URL, {
@@ -78,27 +71,15 @@ async function fetchCurrentPrice(ticker) {
   const cacheKey = `price:${ticker}`;
   try {
     let cached = null;
-    
-    // 1. Intentar Redis
     if (redis) {
-      try { 
-        cached = await redis.get(cacheKey); 
-        if (cached) lastDataSource = 'Redis (Persistente)';
-      } catch (e) { console.warn('Redis get error'); }
+      try { cached = await redis.get(cacheKey); } catch (e) {}
     }
-    
-    // 2. Intentar Memoria
     if (!cached && localPriceCache.has(ticker)) {
       const d = localPriceCache.get(ticker);
-      if (Date.now() - d.timestamp < CACHE_TTL_MS) {
-        cached = d.price;
-        lastDataSource = 'Memoria (Volátil)';
-      }
+      if (Date.now() - d.timestamp < CACHE_TTL_MS) cached = d.price;
     }
     if (cached) return cached;
 
-    // 3. Consultar API
-    lastDataSource = 'API (Directa)';
     const fullTicker = `${ticker}${process.env.MARKET_SUFFIX || ''}`;
     const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -106,9 +87,7 @@ async function fetchCurrentPrice(ticker) {
     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
 
     if (price !== null) {
-      if (redis) {
-        try { await redis.set(cacheKey, price, 'EX', 300); } catch (e) {}
-      }
+      if (redis) try { await redis.set(cacheKey, price, 'EX', 300); } catch (e) {}
       localPriceCache.set(ticker, { price, timestamp: Date.now() });
     }
     return price;
@@ -154,8 +133,7 @@ async function getDashboardData() {
     typeSummary: Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type)),
     sortedDates: Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)),
     groupedByDate,
-    purchases,
-    debug: { source: lastDataSource, redis: !!redis }
+    purchases
   };
 }
 
@@ -166,7 +144,7 @@ app.get('/api/data', dataLimiter, async (req, res) => {
   try {
     const data = await getDashboardData();
     res.json(data);
-  } catch (error) { res.status(500).json({ error: 'Error' }); }
+  } catch (error) { res.status(500).json({ error: 'Error al obtener datos' }); }
 });
 
-app.listen(PORT, () => console.log(`Iniciado en puerto ${PORT}`));
+app.listen(PORT, () => {});

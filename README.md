@@ -1,237 +1,82 @@
-# 📈 Operetas AR - Registro de Operaciones
+# 📈 Operetas AR - Dashboard de Inversiones
 
-Aplicación web desarrollada con Express.js para visualizar y analizar operaciones de inversión en acciones y CEDEARs del mercado argentino.
+Aplicación web profesional de alto rendimiento para el seguimiento y análisis de activos financieros en el mercado argentino. Optimizada para velocidad, seguridad y usabilidad en múltiples dispositivos.
 
-## ✨ Características
+## 🚀 Innovaciones Tecnológicas
 
-- 📊 **Resumen consolidado** por ticker con precio promedio, cantidad total y monto invertido
-- 💰 **Precios actuales en tiempo real** con cálculo automático de:
-  - Total actual (precio actual × cantidad)
-  - Ganancia/pérdida en pesos (con colores verde/rojo)
-  - Ganancia/pérdida en porcentaje (con colores verde/rojo)
-- 💵 **Formato de números argentino** con separación de miles (punto) y decimales (coma)
-- 📈 **Gráficos de torta (pie charts)** interactivos de distribución por especie y tipo de instrumento
-- 📅 **Histórico de operaciones** organizadas por fecha con desplegables colapsables
-- 🌙 **Modo oscuro** automático con persistencia en localStorage y actualización dinámica
-- 📱 **Completamente responsive**:
-  - 💻 Desktop: Tablas completas con todas las columnas
-  - 📱 Tablet/Móvil: Tablas scrolleables horizontalmente
-  - 📲 Móvil pequeño: Vista de tarjetas (cards) vertical
-- 🎨 **Leyendas adaptativas**: Al costado en móviles, abajo en desktop
-- ⚡ **100% offline**: Todas las librerías alojadas localmente
+Esta aplicación ha sido evolucionada de una arquitectura estática a una solución moderna de alto rendimiento:
 
-## Instalación
+- ⚡ **Arquitectura Shell-First**: Carga instantánea de la interfaz (Skeleton Screens) mientras los datos financieros se procesan en segundo plano.
+- 💾 **Caché Persistente con Redis**: Implementación de Upstash/Redis para almacenar precios de mercado, reduciendo la latencia de segundos a milisegundos y optimizando el consumo de APIs externas.
+- 📱 **PWA (Progressive Web App)**: Instalable en dispositivos móviles y escritorio, con capacidades offline y acceso directo desde el inicio.
+- 🛡️ **Seguridad Avanzada**: Protección mediante Helmet.js (CSP, HSTS), Rate Limiting para prevenir abusos y CORS restrictivo.
+- 🎨 **Interfaz "Slate & Indigo"**: Diseño moderno con micro-interacciones suaves, transiciones de modo oscuro fluido y adaptabilidad total.
 
-```bash
-pnpm install
+## ✨ Características Principales
+
+- 📊 **Dashboard Ejecutivo**: 4 tarjetas KPI principales (Inversión, Valor Actual, Ganancia Total y Rendimiento %).
+- 💰 **Cartera de Activos Inteligente**:
+  - Tabla compacta con apilamiento de datos para Tablets (sin scroll horizontal).
+  - Vista de tarjetas densas para Móviles con detalle de cantidad.
+  - Cálculos automáticos de rentabilidad con indicadores visuales Esmeralda/Rojo.
+- 📈 **Análisis Visual Pro**:
+  - Gráficos de distribución por Ticker y por Tipo de Activo.
+  - Nuevo gráfico de barras de **Rendimiento Individual** por activo ($).
+- 📅 **Historial Cronológico**: Operaciones agrupadas por fecha con capitalización automática y diseño compacto.
+- 🌙 **Modo Oscuro Premium**: Transiciones suaves de 0.4s entre temas para evitar la fatiga visual.
+
+## 🛠️ Stack Tecnológico
+
+- **Backend**: Node.js, Express.js
+- **Base de Datos (Caché)**: Redis (vía ioredis / Upstash)
+- **Frontend**: Vanilla JS (ES6+), CSS3 (Variables & Grid), HTML5
+- **Seguridad**: Helmet, Express-Rate-Limit, CORS
+- **Librerías**: Chart.js v4 (Gráficos), Water.css (Base minimalista)
+
+## Estructura del Proyecto
+
+```
+operetas-arg/
+├── server.js               # Servidor seguro con lógica de Redis y APIs
+├── views/
+│   └── renderPage.js       # Shell estático de la aplicación
+├── public/                 # Recursos del cliente
+│   ├── css/
+│   │   └── styles.css      # Diseño Slate & Indigo y Micro-interacciones
+│   ├── js/
+│   │   ├── app.js          # Motor de renderizado asíncrono y PWA
+│   │   └── sw.js           # Service Worker para soporte Offline
+│   ├── manifest.json       # Manifiesto de aplicación instalable
+│   └── favicon.svg         # Identidad visual
+└── package.json            # Dependencias de producción
 ```
 
 ## Configuración
 
-Crear un archivo `.env` en la raíz del proyecto con las siguientes variables:
+Crear un archivo `.env` con las siguientes variables:
 
 ```env
-API_URL=<url_api_operaciones>
-API_URL_TOTAL=<url_api_resumen>
-API_KEY=<api_key>
-PRICE_API_URL=<url_api_precios>
-MARKET_SUFFIX=<sufijo_mercado>
+API_URL=<url_compras>
+API_URL_TOTAL=<url_resumen>
+API_KEY=<tu_clave>
+PRICE_API_URL=<api_precios>
+REDIS_URL=<url_conexion_redis>
+MARKET_SUFFIX=.BA
 PORT=3000
 ```
 
-Variables:
-- `API_URL`: Endpoint de la API de operaciones individuales
-- `API_URL_TOTAL`: Endpoint de la API con resumen consolidado
-- `API_KEY`: Clave de autenticación para las APIs
-- `PRICE_API_URL`: URL base de la API para obtener precios actuales
-- `MARKET_SUFFIX`: Sufijo del mercado a agregar al ticker (ej: .BA para Argentina)
-- `PORT`: Puerto del servidor (por defecto 3000)
-
-Ver `.env.example` para referencia.
-
-## Uso
-
-### Iniciar el servidor:
+## Instalación y Uso
 
 ```bash
+# Instalar dependencias
+pnpm install
+
+# Iniciar en modo producción
 pnpm start
-```
 
-O en modo desarrollo con auto-reload:
-
-```bash
+# Iniciar en modo desarrollo (auto-reload)
 pnpm run dev
 ```
 
-Acceder a la aplicación en `http://localhost:3000`
-
-## Rutas disponibles
-
-- `GET /` - Interfaz web principal con visualización completa
-- `GET /api/purchases` - API que devuelve las operaciones en formato JSON
-
-## Estructura del proyecto
-
-```
-operetas-arg/
-├── server.js               # Servidor Express y lógica de backend
-├── views/
-│   └── renderPage.js       # Template HTML con renderizado dinámico
-├── public/                 # Archivos estáticos servidos por Express
-│   ├── css/
-│   │   ├── water.min.css   # Framework CSS minimalista
-│   │   └── styles.css      # Estilos personalizados
-│   ├── js/
-│   │   ├── chart.min.js    # Chart.js para gráficos
-│   │   └── app.js          # Lógica del cliente
-│   └── favicon.svg         # Icono de la aplicación
-├── package.json            # Configuración de dependencias
-├── pnpm-lock.yaml          # Lock file de dependencias
-├── .env                    # Variables de entorno (no versionar)
-├── .env.example            # Plantilla de variables de entorno
-├── .gitignore              # Archivos ignorados por git
-└── README.md               # Documentación
-```
-
-## Estructura de datos
-
-### API de Operaciones (`API_URL`)
-Devuelve un array de operaciones individuales:
-
-```json
-{
-  "ticker": "INVJ",
-  "name": "INVERSORA JURAMENTO SA",
-  "type": "acción",
-  "purchase_price": 648.57,
-  "purchase_amount": 50,
-  "purchase_date": "2025-12-04"
-}
-```
-
-### API de Resumen Total (`API_URL_TOTAL`)
-Devuelve un array con datos consolidados por ticker:
-
-```json
-{
-  "ticker": "INVJ",
-  "name": "INVERSORA JURAMENTO SA",
-  "type": "acción",
-  "total_purchase_amount": 50,
-  "average_purchase_price": 648.57,
-  "total_investment": 32428.30
-}
-```
-
-## 🛠️ Tecnologías utilizadas
-
-### Backend
-- **Node.js** - Runtime de JavaScript
-- **Express.js** - Framework web minimalista
-- **dotenv** - Gestión de variables de entorno
-- **Fetch API** - Cliente HTTP nativo
-
-### Frontend
-- **HTML5** - Estructura semántica
-- **CSS3** - Estilos y animaciones
-- **JavaScript ES6+** - Lógica del cliente (vanilla)
-
-### Librerías
-- **Chart.js v4.4.1** (~60KB) - Gráficos de torta interactivos y responsive
-- **Water.css** (~2.6KB) - Framework CSS minimalista sin clases
-
-### Características técnicas
-- ✅ **Arquitectura separada**: HTML, CSS y JavaScript en archivos independientes
-- ✅ Sin dependencias frontend (jQuery, React, etc.)
-- ✅ Sin build tools ni transpiladores
-- ✅ Todas las librerías alojadas localmente
-- ✅ Compatible con todos los navegadores modernos
-- ✅ SEO friendly con SSR (Server-Side Rendering)
-- ✅ **Paleta de colores personalizable**: Océano y Naturaleza (azul cielo, azul marino, teal)
-
-## 💰 Precios actuales y cálculo de ganancias
-
-La aplicación obtiene precios actuales de mercado para cada ticker y calcula automáticamente:
-
-### Columnas de la tabla resumen
-
-| Columna | Descripción | Formato |
-|---------|-------------|---------|
-| **Ticker** | Código del instrumento | Texto |
-| **Tipo** | Tipo de instrumento (acción, bono, etc.) | Texto |
-| **Nombre** | Nombre completo del instrumento | Texto |
-| **Precio Prom.** | Precio promedio de compra | $1.234,56 |
-| **Precio Actual** | Precio actual de mercado | $1.234,56 |
-| **Cant.** | Cantidad total de instrumentos | 1.234 |
-| **Total** | Monto total invertido (precio prom. × cant.) | $1.234.567,89 |
-| **Total Actual** | Valor actual (precio actual × cant.) | $1.234.567,89 |
-| **Ganancia** | Diferencia (total actual - total) | $±1.234,56 🟢🔴 |
-| **Ganancia %** | Porcentaje de ganancia/pérdida | ±12,34% 🟢🔴 |
-
-### Indicadores visuales
-- 🟢 **Verde**: Ganancia positiva (≥ 0)
-- 🔴 **Rojo**: Pérdida (< 0)
-- **N/A**: Precio no disponible
-
-### Actualización de precios
-- Los precios se obtienen en **paralelo** para optimizar el rendimiento
-- Si una API falla para algún ticker, se muestra "N/A" sin afectar el resto
-- Los totales se calculan automáticamente en la fila de subtotales
-
-## 📊 Características de los gráficos
-
-- **Tipo**: Pie charts (gráficos de torta)
-- **Leyendas personalizadas**: Muestran ticker y monto ($)
-- **Tooltips informativos**: Valor + porcentaje del total
-- **Colores consistentes**: Paleta de 10 colores vibrantes
-- **Responsive**:
-  - Desktop: Leyendas abajo, altura 220px
-  - Móvil: Leyendas al costado derecho, altura 160-180px
-- **Modo oscuro**: Las etiquetas cambian de color automáticamente
-- **Animaciones suaves**: Transiciones al cargar y actualizar
-
-## 🎨 Diseño responsive
-
-### Breakpoints
-- **Desktop**: > 900px - Layout completo con 2 columnas
-- **Tablet**: 769-900px - 1 columna, tablas scrolleables
-- **Móvil**: 481-768px - Tablas compactas, fuentes reducidas
-- **Móvil pequeño**: ≤ 480px - Vista de tarjetas (cards)
-
-### Adaptaciones por dispositivo
-| Componente | Desktop | Tablet | Móvil | Móvil pequeño |
-|------------|---------|--------|-------|---------------|
-| Tabla resumen | Completa | Completa | Scroll H | Cards |
-| Tablas por fecha | Completa | Completa | Scroll H | Cards |
-| Gráficos | 2 columnas | 1 columna | 1 columna | 1 columna |
-| Leyendas | Abajo | Derecha | Derecha | Derecha |
-
-## 📝 Notas de desarrollo
-
-- El proyecto usa **pnpm** como gestor de paquetes
-- Los gráficos se actualizan dinámicamente al cambiar de modo oscuro
-- Las tarjetas móviles tienen sombras y bordes para mejor separación visual
-- Todos los colores son accesibles según estándares WCAG
-- El favicon usa un SVG personalizado con gráfico ascendente verde
-
-## 🎨 Paleta de colores
-
-La aplicación utiliza la paleta **"Océano y Naturaleza"** con gradientes invertidos (oscuro a claro):
-
-- **Título principal**: Gradiente azul cielo (`#0284c7` → `#0ea5e9`)
-- **Secciones principales**: Gradiente azul marino (`#1e3a8a` → `#1e40af`)
-- **Fechas individuales**: Gradiente teal (`#0d9488` → `#14b8a6`)
-- **Modo oscuro**: Cyan claro para textos destacados (`#22d3ee`)
-
-## 🚀 Mejoras recientes
-
-- ✅ **Precios actuales**: Integración con API de precios en tiempo real
-- ✅ **Cálculo de ganancias**: Muestra ganancia/pérdida en pesos y porcentaje con colores
-- ✅ **Formato argentino**: Separación de miles con punto y decimales con coma
-- ✅ **Tabla resumen ampliada**: Ahora incluye 10 columnas con toda la información financiera
-- ✅ **Variables de entorno**: API de precios configurable desde .env
-- ✅ Código separado en archivos independientes (HTML, CSS, JS)
-- ✅ Favicon SVG personalizado con línea verde ascendente
-- ✅ Paleta de colores profesional con diferenciación clara de secciones
-- ✅ Gradientes invertidos para mejor contraste del texto
-- ✅ Estructura modular para mejor mantenibilidad
+---
+*Desarrollado con foco en la experiencia de usuario y la eficiencia de datos.*
