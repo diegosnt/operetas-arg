@@ -8,7 +8,7 @@ function renderPage() {
   <title>Operaciones AR - Dashboard</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/styles.min.css">
   <script>if (localStorage.getItem('darkMode') === 'enabled') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
@@ -35,22 +35,37 @@ function renderPage() {
     <!-- KPI Cards -->
     <div class="kpi-grid">
       <div class="kpi-card" id="kpi-invested">
-        <div class="kpi-label">Inversión Total</div>
-        <div class="kpi-value">--</div>
+        <span class="kpi-label">Inversión Total</span>
+        <div class="kpi-value">...</div>
       </div>
       <div class="kpi-card" id="kpi-current">
-        <div class="kpi-label">Valor Actual</div>
-        <div class="kpi-value">--</div>
+        <span class="kpi-label">Valor Actual</span>
+        <div class="kpi-value">...</div>
       </div>
       <div class="kpi-card" id="kpi-profit">
-        <div class="kpi-label">Ganancia Total</div>
-        <div class="kpi-value">--</div>
+        <span class="kpi-label">Ganancia Total</span>
+        <div class="kpi-value">...</div>
       </div>
       <div class="kpi-card" id="kpi-pct">
-        <div class="kpi-label">Rendimiento</div>
-        <div class="kpi-value">--</div>
+        <span class="kpi-label">Rendimiento</span>
+        <div class="kpi-value">...</div>
       </div>
     </div>
+
+
+    <!-- Nuevo: Mapa de Calor de Cartera -->
+    <section class="charts-section">
+      <div class="charts-header" data-collapsible>
+        <h2>Mapa de Calor (Treemap) - Distribución y Rendimiento</h2>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="charts-content">
+        <p class="section-desc">El tamaño representa el capital y el color el rendimiento (Verde: Ganancia, Rojo: Pérdida).</p>
+        <div class="treemap-container">
+          <canvas id="chartTreemap"></canvas>
+        </div>
+      </div>
+    </section>
 
     <!-- Resumen Table -->
     <section class="charts-section">
@@ -115,8 +130,10 @@ function renderPage() {
     <div id="footer-summary">Cargando datos del mercado...</div>
   </footer>
 
+  <!-- Librerías locales -->
   <script src="/js/chart.min.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/chartjs-chart-treemap.min.js"></script>
+  <script src="/js/app.min.js"></script>
 </body>
 </html>
   `;

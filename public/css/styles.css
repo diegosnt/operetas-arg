@@ -232,6 +232,18 @@ tr:hover td {
 .cell-stack { display: flex; flex-direction: column; }
 .cell-subtext { font-size: 0.75rem; color: var(--text-muted); }
 
+.treemap-container {
+  min-height: 400px;
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.section-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
 /* Charts */
 .summary-grid {
   display: grid;

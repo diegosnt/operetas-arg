@@ -1,9 +1,10 @@
-const CACHE_NAME = 'operetas-v1';
+const CACHE_NAME = 'operetas-v2';
 const ASSETS = [
   '/',
-  '/css/styles.css',
-  '/js/app.js',
+  '/css/styles.min.css',
+  '/js/app.min.js',
   '/js/chart.min.js',
+  '/js/chartjs-chart-treemap.min.js',
   '/favicon.svg',
   '/manifest.json'
 ];
@@ -33,8 +34,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Para la API: Intentar red primero, si falla usar caché (Network First)
-  if (url.pathname.startsWith('/api/')) {
+  // Excluir llamadas de API para no interferir con datos dinámicos (usar Network First)
+  if (url.pathname.includes('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -47,9 +48,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para archivos estáticos: Usar caché primero, si no ir a la red (Cache First)
+  // Para todo lo demás (Estáticos): Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });

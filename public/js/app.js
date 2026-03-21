@@ -90,6 +90,7 @@ function renderDashboard() {
   updateKPI('kpi-profit', `$${formatNumber(totalProfit)}`, totalProfit >= 0 ? 'profit-positive' : 'profit-negative');
   updateKPI('kpi-pct', `${formatNumber(totalProfitPct)}%`, totalProfit >= 0 ? 'profit-positive' : 'profit-negative');
   
+  renderTreemap(tickerSummary);
   renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit, totalProfitPct);
   renderHistory(sortedDates, groupedByDate);
   
@@ -170,6 +171,7 @@ function updateKPI(id, value, className) {
 }
 
 function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit, totalProfitPct) {
+
   const container = document.getElementById('summary-table-container');
   if (!container) return;
   container.classList.remove('loading-skeleton');
@@ -347,6 +349,90 @@ let chartByTicker = null;
 let chartByType = null;
 let chartPerformance = null;
 let chartEquity = null;
+let chartTreemap = null;
+
+function renderTreemap(tickerSummary) {
+  const ctx = document.getElementById('chartTreemap');
+  if (!ctx || !tickerSummary || tickerSummary.length === 0) return;
+  
+  if (chartTreemap) chartTreemap.destroy();
+
+  try {
+    const data = tickerSummary.map(item => {
+      const cost = parseFloat(item.totalCost) || 0;
+      const amount = parseFloat(item.totalAmount) || 0;
+      const currentPrice = item.currentPrice !== null ? parseFloat(item.currentPrice) : null;
+      
+      let profitPct = 0;
+      if (currentPrice !== null && cost > 0) {
+        const currentTotal = currentPrice * amount;
+        profitPct = ((currentTotal - cost) / cost) * 100;
+      }
+      
+      const getColor = (p) => {
+        if (p > 0) return p > 10 ? '#065f46' : '#10b981'; // Verdes (Oscuro / Normal)
+        if (p < 0) return p < -10 ? '#991b1b' : '#ef4444'; // Rojos (Oscuro / Normal)
+        return '#64748b'; // Gris
+      };
+
+      return {
+        ticker: item.ticker,
+        value: cost,
+        pct: profitPct,
+        color: getColor(profitPct)
+      };
+    }).filter(d => d.value > 0);
+
+    chartTreemap = new Chart(ctx, {
+      type: 'treemap',
+      data: {
+        datasets: [{
+          tree: data,
+          key: 'value',
+          // NO usamos 'groups' para evitar nodos intermedios negros
+          spacing: 1,
+          borderWidth: 0,
+          borderRadius: 4,
+          backgroundColor: (context) => {
+            const raw = context.raw;
+            if (!raw || !raw._data) return '#64748b';
+            return raw._data.color;
+          },
+          labels: {
+            display: true,
+            formatter: (context) => {
+              const raw = context.raw;
+              if (!raw || !raw._data) return [];
+              const d = raw._data;
+              return [d.ticker, formatNumber(d.pct) + '%'];
+            },
+            font: { size: 14, weight: 'bold' },
+            color: '#ffffff',
+            overflow: 'fit'
+          }
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const d = context.raw._data;
+                if (!d) return '';
+                return ` ${d.ticker}: $${formatNumber(d.value)} (${formatNumber(d.pct)}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Treemap error:', e);
+  }
+}
 
 const datalabelsPlugin = {
   id: 'datalabels',
@@ -470,7 +556,7 @@ function initializeCharts(tickerData, typeData, perfData, equityData) {
         labels: typeData.labels,
         datasets: [{
           data: typeData.data,
-          backgroundColor: ['#4f46e6', '#6366f1', '#10b981'],
+          backgroundColor: ['#4f46e6', '#bd63f1', '#10b981'],
           borderWidth: 0
         }]
       },

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
+const compression = require('compression');
 const cors = require('cors');
 const { rateLimit } = require('express-rate-limit');
 const Redis = require('ioredis');
@@ -9,12 +10,15 @@ const { renderPage } = require('./views/renderPage');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Seguridad ---
+// --- Performance & Seguridad ---
+app.use(compression()); // Gzip/Brotli para reducir transferencia de datos
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      "script-src": ["'self'", "'unsafe-inline'"], 
+      "script-src": ["'self'", "'unsafe-inline'"],
+      "img-src": ["'self'", "data:", "https:"],
     },
   },
 }));
@@ -38,7 +42,14 @@ const dataLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-app.use(express.static('public'));
+
+// Configuración de estáticos con caché agresivo (1 año) para librerías y estilos
+app.use(express.static('public', {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true
+}));
+
 
 // --- Lógica de Datos y Redis ---
 
