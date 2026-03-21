@@ -2,28 +2,32 @@
 
 Aplicación web profesional de alto rendimiento para el seguimiento y análisis de activos financieros en el mercado argentino. Optimizada para velocidad, seguridad y usabilidad en múltiples dispositivos.
 
-## 🚀 Innovaciones Tecnológicas
+## 🚀 Innovaciones Tecnológicas y Recientes
 
-Esta aplicación ha sido evolucionada de una arquitectura estática a una solución moderna de alto rendimiento:
+Esta aplicación ha evolucionado a una solución moderna de alto rendimiento con las siguientes actualizaciones:
 
-- ⚡ **Arquitectura Shell-First**: Carga instantánea de la interfaz (Skeleton Screens) mientras los datos financieros se procesan en segundo plano.
-- 💾 **Caché Persistente con Redis**: Implementación de Upstash/Redis para almacenar precios de mercado, reduciendo la latencia de segundos a milisegundos y optimizando el consumo de APIs externas.
-- 📱 **PWA (Progressive Web App)**: Instalable en dispositivos móviles y escritorio, con capacidades offline y acceso directo desde el inicio.
-- 🛡️ **Seguridad Avanzada**: Protección mediante Helmet.js (CSP, HSTS), Rate Limiting para prevenir abusos y CORS restrictivo.
-- 🎨 **Interfaz "Slate & Indigo"**: Diseño moderno con micro-interacciones suaves, transiciones de modo oscuro fluido y adaptabilidad total.
+- ⚡ **Arquitectura Shell-First & Instant Load**: Carga inmediata de la interfaz mediante Skeleton Screens y persistencia de datos en `localStorage` para una experiencia instantánea.
+- 💾 **Caché Inteligente con Redis**: Implementación de Upstash/Redis para almacenar precios de mercado en tiempo real, reduciendo latencia y optimizando el consumo de APIs externas.
+- 📈 **Visualización Avanzada (Chart.js v4)**:
+  - **Nuevo**: Gráfico de **Evolución de Inversión** (Línea) que muestra el crecimiento acumulado.
+  - Gráfico de **Rendimiento Individual** (Barras) con porcentajes de ganancia/pérdida.
+  - Distribución de cartera por Ticker (Doughnut) y por Tipo de Activo (Pie).
+- 📱 **PWA (Progressive Web App)**: Instalable, con Service Worker para soporte offline y acceso directo desde la pantalla de inicio.
+- 🛡️ **Seguridad de Grado Producción**: 
+  - Protección mediante **Helmet.js** con CSP personalizada.
+  - **Doble Nivel de Rate Limiting**: Limitación global y específica para la API de datos.
+  - CORS restrictivo mediante `ALLOWED_ORIGINS` configurables.
 
 ## ✨ Características Principales
 
 - 📊 **Dashboard Ejecutivo**: 4 tarjetas KPI principales (Inversión, Valor Actual, Ganancia Total y Rendimiento %).
-- 💰 **Cartera de Activos Inteligente**:
-  - Tabla compacta con apilamiento de datos para Tablets (sin scroll horizontal).
+- 💰 **Cartera Inteligente**:
+  - Diseño colapsable para optimizar el espacio visual.
+  - Tabla compacta con apilamiento de datos para Tablets.
   - Vista de tarjetas densas para Móviles con detalle de cantidad.
-  - Cálculos automáticos de rentabilidad con indicadores visuales Esmeralda/Rojo.
-- 📈 **Análisis Visual Pro**:
-  - Gráficos de distribución por Ticker y por Tipo de Activo.
-  - Nuevo gráfico de barras de **Rendimiento Individual** por activo ($).
-- 📅 **Historial Cronológico**: Operaciones agrupadas por fecha con capitalización automática y diseño compacto.
-- 🌙 **Modo Oscuro Premium**: Transiciones suaves de 0.4s entre temas para evitar la fatiga visual.
+  - Indicadores visuales automáticos de rentabilidad (Esmeralda/Rojo).
+- 📅 **Historial Cronológico**: Operaciones agrupadas por fecha, con capitalización automática y diseño compacto colapsable.
+- 🌙 **Modo Oscuro Premium**: Transiciones suaves y gráficos que se adaptan automáticamente al tema elegido.
 
 ## 🛠️ Stack Tecnológico
 
@@ -61,6 +65,7 @@ API_URL_TOTAL=<url_resumen>
 API_KEY=<tu_clave>
 PRICE_API_URL=<api_precios>
 REDIS_URL=<url_conexion_redis>
+ALLOWED_ORIGINS=http://localhost:3000,https://tusitio.vercel.app
 MARKET_SUFFIX=.BA
 PORT=3000
 ```
@@ -71,11 +76,11 @@ PORT=3000
 # Instalar dependencias
 pnpm install
 
-# Iniciar en modo producción
-pnpm start
-
 # Iniciar en modo desarrollo (auto-reload)
 pnpm run dev
+
+# Iniciar en modo producción
+pnpm start
 ```
 
 ---

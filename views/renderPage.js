@@ -84,6 +84,12 @@ function renderPage() {
             </div>
           </div>
           <div class="summary-chart-container" style="grid-column: 1 / -1;">
+            <h3>Evolución de Inversión Total ($)</h3>
+            <div class="chart-wrapper" style="min-height: 300px;">
+              <canvas id="chartEquity"></canvas>
+            </div>
+          </div>
+          <div class="summary-chart-container" style="grid-column: 1 / -1;">
             <h3>Ganancia / Pérdida por Activo ($)</h3>
             <div class="chart-wrapper" style="min-height: 400px;">
               <canvas id="chartPerformance"></canvas>

@@ -95,11 +95,39 @@ function renderDashboard() {
   
   const performanceData = tickerSummary.map(item => {
     const currentVal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
+    const profit = currentVal > 0 ? (currentVal - item.totalCost) : 0;
+    const pct = item.totalCost > 0 ? (profit / item.totalCost * 100) : 0;
     return {
       ticker: item.ticker,
-      profit: currentVal > 0 ? (currentVal - item.totalCost) : 0
+      profit: profit,
+      pct: pct
     };
   }).sort((a, b) => b.profit - a.profit);
+
+  const totalTickerCostForLabels = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalTypeCostForLabels = typeSummary.reduce((sum, item) => sum + item.totalCost, 0);
+
+  const equityDataRaw = purchases.slice().sort((a, b) => new Date(a.purchase_date) - new Date(b.purchase_date));
+  let runningTotal = 0;
+  const equityPoints = [];
+  const equityLabels = [];
+  
+  // Agrupar por fecha para evitar puntos duplicados en el mismo día
+  const dailyEquity = {};
+  equityDataRaw.forEach(p => {
+    runningTotal += (p.purchase_price * p.purchase_amount);
+    dailyEquity[p.purchase_date] = runningTotal;
+  });
+  
+  Object.keys(dailyEquity).sort().forEach(date => {
+    equityLabels.push(new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }));
+    equityLabels.push(new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: '2-digit' }));
+    equityPoints.push(dailyEquity[date]);
+  });
+  // Limpiar etiquetas para que no se repitan años si no es necesario
+  const finalLabels = Object.keys(dailyEquity).sort().map(d => {
+    return new Date(d + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  });
 
   initializeCharts(
     {
@@ -112,7 +140,12 @@ function renderDashboard() {
     },
     {
       labels: performanceData.map(d => d.ticker),
-      data: performanceData.map(d => d.profit)
+      data: performanceData.map(d => d.profit),
+      pcts: performanceData.map(d => d.pct)
+    },
+    {
+      labels: finalLabels,
+      data: equityPoints
     }
   );
   
@@ -313,8 +346,69 @@ function renderHistory(sortedDates, groupedByDate) {
 let chartByTicker = null;
 let chartByType = null;
 let chartPerformance = null;
+let chartEquity = null;
 
-function initializeCharts(tickerData, typeData, perfData) {
+const datalabelsPlugin = {
+  id: 'datalabels',
+  afterDraw: (chart) => {
+    const { ctx, config } = chart;
+    const type = config.type;
+    if (type !== 'pie' && type !== 'doughnut' && type !== 'bar') return;
+    
+    ctx.save();
+    // Configuración de fuente unificada
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    chart.data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      meta.data.forEach((element, index) => {
+        let text = '';
+        let x = 0, y = 0;
+        let useWhite = true;
+
+        if (type === 'pie' || type === 'doughnut') {
+          const total = dataset.data.reduce((sum, val) => sum + val, 0);
+          const value = dataset.data[index];
+          if (value <= total * 0.03) return;
+          text = ((value / total) * 100).toFixed(1) + '%';
+          const center = element.getCenterPoint();
+          x = center.x;
+          y = center.y;
+        } else if (type === 'bar') {
+          const pct = chart.data.pcts ? chart.data.pcts[index] : 0;
+          if (Math.abs(pct) < 0.1) return;
+          text = formatNumber(pct) + '%';
+          const model = element;
+          x = model.x;
+          const isPositive = dataset.data[index] >= 0;
+          y = isPositive ? model.y + 15 : model.y - 15;
+          const barHeight = Math.abs(model.base - model.y);
+          if (barHeight < 25) {
+            y = isPositive ? model.y - 10 : model.y + 10;
+            useWhite = false; // Fuera de la barra usamos color de tema
+          }
+        }
+
+        if (text) {
+          if (useWhite) {
+            ctx.fillStyle = 'white';
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+          } else {
+            ctx.fillStyle = document.documentElement.classList.contains('dark-mode') ? '#cbd5e1' : '#64748b';
+            ctx.shadowBlur = 0;
+          }
+          ctx.fillText(text, x, y);
+        }
+      });
+    });
+    ctx.restore();
+  }
+};
+
+function initializeCharts(tickerData, typeData, perfData, equityData) {
   const isDarkMode = document.documentElement.classList.contains('dark-mode');
   const textColor = isDarkMode ? '#cbd5e1' : '#64748b';
   
@@ -333,6 +427,15 @@ function initializeCharts(tickerData, typeData, perfData) {
           font: { size: 12, weight: '500' },
           usePointStyle: true
         }
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const label = ctx.label || '';
+            const value = ctx.parsed;
+            return ` ${label}: $${formatNumber(value)}`;
+          }
+        }
       }
     }
   };
@@ -340,6 +443,7 @@ function initializeCharts(tickerData, typeData, perfData) {
   if (chartByTicker) chartByTicker.destroy();
   if (chartByType) chartByType.destroy();
   if (chartPerformance) chartPerformance.destroy();
+  if (chartEquity) chartEquity.destroy();
 
   const ctxTicker = document.getElementById('chartByTicker');
   if (ctxTicker) {
@@ -353,7 +457,8 @@ function initializeCharts(tickerData, typeData, perfData) {
           borderWidth: 0
         }]
       },
-      options: pieOptions
+      options: pieOptions,
+      plugins: [datalabelsPlugin]
     });
   }
 
@@ -369,7 +474,8 @@ function initializeCharts(tickerData, typeData, perfData) {
           borderWidth: 0
         }]
       },
-      options: pieOptions
+      options: pieOptions,
+      plugins: [datalabelsPlugin]
     });
   }
 
@@ -379,11 +485,59 @@ function initializeCharts(tickerData, typeData, perfData) {
       type: 'bar',
       data: {
         labels: perfData.labels,
+        pcts: perfData.pcts,
         datasets: [{
           label: 'Ganancia/Pérdida ($)',
           data: perfData.data,
           backgroundColor: perfData.data.map(v => v >= 0 ? '#10b981' : '#ef4444'),
           borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.parsed.y;
+                const pct = chartPerformance.data.pcts[ctx.dataIndex];
+                return ` $${formatNumber(val)} (${formatNumber(pct)}%)`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: { 
+            grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
+            ticks: { color: textColor }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor }
+          }
+        }
+      },
+      plugins: [datalabelsPlugin]
+    });
+  }
+
+  const ctxEquity = document.getElementById('chartEquity');
+  if (ctxEquity) {
+    chartEquity = new Chart(ctxEquity, {
+      type: 'line',
+      data: {
+        labels: equityData.labels,
+        datasets: [{
+          label: 'Inversión Acumulada',
+          data: equityData.data,
+          borderColor: '#4f46e6',
+          backgroundColor: 'rgba(79, 70, 230, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#4f46e6'
         }]
       },
       options: {
@@ -400,7 +554,10 @@ function initializeCharts(tickerData, typeData, perfData) {
         scales: {
           y: { 
             grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
-            ticks: { color: textColor }
+            ticks: { 
+              color: textColor,
+              callback: (val) => '$' + formatNumber(val)
+            }
           },
           x: {
             grid: { display: false },
@@ -415,7 +572,7 @@ function initializeCharts(tickerData, typeData, perfData) {
 function updateChartColors() {
   const isDark = document.documentElement.classList.contains('dark-mode');
   const color = isDark ? '#cbd5e1' : '#64748b';
-  [chartByTicker, chartByType, chartPerformance].forEach(c => {
+  [chartByTicker, chartByType, chartPerformance, chartEquity].forEach(c => {
     if (c) {
       if (c.options.plugins.legend) c.options.plugins.legend.labels.color = color;
       if (c.options.scales) {
