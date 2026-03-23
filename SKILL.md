@@ -5,11 +5,15 @@ Esta guía define los estándares de arquitectura, seguridad y diseño para apli
 ## 🛠️ Pilares de Arquitectura
 
 ### 1. Modelo Híbrido (Shell-First)
-- **Backend**: Servidor Express que entrega un HTML estático (Skeleton) de forma instantánea.
-- **Frontend**: Renderizado asíncrono en el cliente mediante `fetch()` a endpoints `/api/...`.
+- **Backend**: Servidor Express con `dotenv` para gestión de secretos y entorno.
+- **Frontend**: Renderizado asíncrono en el cliente mediante `fetch()` (Async/Await) a endpoints `/api/...`.
 - **Estado**: Carga inicial desde `localStorage` para percepción de velocidad instantánea.
 
-### 2. Estrategia de Performance (Grado Producción)
+### 2. Gestión y Despliegue
+- **Package Manager**: Uso obligatorio de `pnpm` para gestión eficiente de dependencias.
+- **Pipeline de Build**: Automatización con `clean-css-cli` y `terser` para minificación de activos.
+
+### 3. Estrategia de Performance (Grado Producción)
 - **Compresión**: Uso obligatorio de `compression` (Gzip/Brotli).
 - **Caché HTTP**: Servir recursos estáticos (`public/`) con `maxAge: '1y'` y `etag`.
 - **Minificación**: Servir versiones `.min.js` y `.min.css` en producción.

@@ -31,9 +31,11 @@ Esta aplicación ha evolucionado a una solución de alto rendimiento con las sig
 
 ## 🛠️ Stack Tecnológico
 
-- **Backend**: Node.js, Express.js
+- **Backend**: Node.js, Express.js, dotenv
 - **Base de Datos (Caché)**: Redis (vía ioredis / Upstash)
-- **Frontend**: Vanilla JS (ES6+), CSS3 (Variables & Grid), HTML5
+- **Frontend**: Vanilla JS (ES6+), CSS3 (Variables & Grid), HTML5, SVG Icons
+- **Comunicación**: Fetch API (Async/Await)
+- **Gestor de Paquetes**: pnpm
 - **Optimización**: Compression, Terser, Clean-CSS
 - **Seguridad**: Helmet, Express-Rate-Limit, CORS
 - **Librerías**: Chart.js v4 (Local), Treemap Plugin (Local)
