@@ -121,20 +121,52 @@ async function getDashboardData() {
     return groups;
   }, {});
 
-  const tickerSummary = totalSummary.map(item => ({
-    ticker: item.ticker,
-    name: item.name,
-    type: item.type,
-    totalAmount: item.total_purchase_amount || 0,
-    averagePrice: item.average_purchase_price || 0,
-    totalCost: item.total_investment || 0,
+  const calculatedTickerSummary = purchases.reduce((acc, p) => {
+    const ticker = p.ticker;
+    if (!acc[ticker]) {
+      acc[ticker] = { 
+        ticker, 
+        name: p.name || ticker, 
+        type: p.type || 'Sin tipo', 
+        totalAmount: 0, 
+        totalCost: 0 
+      };
+    }
+    
+    const operation = (p.operation || 'COMPRA').toUpperCase();
+    const cost = p.purchase_price * p.purchase_amount;
+    const amount = p.purchase_amount;
+    
+    if (operation === 'VENTA' || operation === 'SELL') {
+      acc[ticker].totalAmount -= amount;
+      acc[ticker].totalCost -= cost;
+    } else {
+      acc[ticker].totalAmount += amount;
+      acc[ticker].totalCost += cost;
+    }
+    
+    return acc;
+  }, {});
+
+  const tickerSummary = Object.values(calculatedTickerSummary).map(item => ({
+    ...item,
+    averagePrice: item.totalAmount > 0 ? item.totalCost / item.totalAmount : 0,
     currentPrice: currentPrices[item.ticker] || null
   })).sort((a, b) => a.ticker.localeCompare(b.ticker));
 
   const groupedByType = purchases.reduce((groups, p) => {
     const t = p.type || 'Sin tipo';
     if (!groups[t]) groups[t] = { type: t, totalCost: 0, count: 0 };
-    groups[t].totalCost += (p.purchase_price * p.purchase_amount);
+    
+    const operation = (p.operation || 'COMPRA').toUpperCase();
+    const cost = p.purchase_price * p.purchase_amount;
+    
+    if (operation === 'VENTA' || operation === 'SELL') {
+      groups[t].totalCost -= cost;
+    } else {
+      groups[t].totalCost += cost;
+    }
+    
     groups[t].count++;
     return groups;
   }, {});

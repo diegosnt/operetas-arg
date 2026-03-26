@@ -11,8 +11,7 @@ Esta aplicación ha evolucionado a una solución de alto rendimiento con las sig
   - **Estrategia de Caché Agresiva**: Cabeceras `Cache-Control` de larga duración (1 año) para activos estáticos.
   - **Minificación Automática**: Pipeline de construcción para CSS y JS reduciendo el tiempo de parseo del navegador.
 - 📉 **Visualización Avanzada (Chart.js v4)**:
-  - **Nuevo**: **Mapa de Calor (Treemap)** que muestra la distribución de cartera por capital (tamaño) y rendimiento (color).
-  - Gráfico de **Evolución de Inversión** (Línea) para crecimiento acumulado.
+  - **Nuevo**: **Mapa de Calor (Treemap)** que muestra la distribution de cartera por capital (tamaño) y rendimiento (color).
   - Gráfico de **Rendimiento Individual** (Barras) y Distribución (Doughnut/Pie).
 - 📱 **PWA v2 (Progressive Web App)**:
   - **Estrategia Stale-While-Revalidate**: Carga instantánea desde caché con actualización asíncrona en segundo plano.

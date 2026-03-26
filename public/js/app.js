@@ -101,34 +101,14 @@ function renderDashboard() {
     return {
       ticker: item.ticker,
       profit: profit,
-      pct: pct
+      pct: pct,
+      cost: item.totalCost,
+      current: currentVal
     };
   }).sort((a, b) => b.profit - a.profit);
 
   const totalTickerCostForLabels = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
   const totalTypeCostForLabels = typeSummary.reduce((sum, item) => sum + item.totalCost, 0);
-
-  const equityDataRaw = purchases.slice().sort((a, b) => new Date(a.purchase_date) - new Date(b.purchase_date));
-  let runningTotal = 0;
-  const equityPoints = [];
-  const equityLabels = [];
-  
-  // Agrupar por fecha para evitar puntos duplicados en el mismo día
-  const dailyEquity = {};
-  equityDataRaw.forEach(p => {
-    runningTotal += (p.purchase_price * p.purchase_amount);
-    dailyEquity[p.purchase_date] = runningTotal;
-  });
-  
-  Object.keys(dailyEquity).sort().forEach(date => {
-    equityLabels.push(new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }));
-    equityLabels.push(new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: '2-digit' }));
-    equityPoints.push(dailyEquity[date]);
-  });
-  // Limpiar etiquetas para que no se repitan años si no es necesario
-  const finalLabels = Object.keys(dailyEquity).sort().map(d => {
-    return new Date(d + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-  });
 
   initializeCharts(
     {
@@ -141,12 +121,8 @@ function renderDashboard() {
     },
     {
       labels: performanceData.map(d => d.ticker),
-      data: performanceData.map(d => d.profit),
-      pcts: performanceData.map(d => d.pct)
-    },
-    {
-      labels: finalLabels,
-      data: equityPoints
+      costs: performanceData.map(d => d.cost),
+      currents: performanceData.map(d => d.current)
     }
   );
   
@@ -289,7 +265,13 @@ function renderHistory(sortedDates, groupedByDate) {
   
   let html = sortedDates.map(date => {
     const datePurchases = groupedByDate[date].slice().sort((a, b) => a.ticker.localeCompare(b.ticker));
-    const dateTotal = datePurchases.reduce((sum, p) => sum + (p.purchase_price * p.purchase_amount), 0);
+    
+    const dateTotal = datePurchases.reduce((sum, p) => {
+      const operation = (p.operation || 'COMPRA').toUpperCase();
+      const cost = p.purchase_price * p.purchase_amount;
+      return (operation === 'VENTA' || operation === 'SELL') ? sum - cost : sum + cost;
+    }, 0);
+    
     const dateStrRaw = new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const dateStr = capitalizeDate(dateStrRaw);
 
@@ -311,30 +293,42 @@ function renderHistory(sortedDates, groupedByDate) {
               <tr><th>Ticker</th><th>Operación</th><th>Precio</th><th>Cantidad</th><th>Total</th></tr>
             </thead>
             <tbody>
-              ${datePurchases.map(p => `
-                <tr>
-                  <td class="ticker">${p.ticker}</td>
-                  <td>${p.operation || 'COMPRA'}</td>
-                  <td>$${formatNumber(p.purchase_price)}</td>
-                  <td>${p.purchase_amount.toLocaleString('es-AR')}</td>
-                  <td>$${formatNumber(p.purchase_price * p.purchase_amount)}</td>
-                </tr>
-              `).join('')}
+              ${datePurchases.map(p => {
+                const operation = (p.operation || 'COMPRA').toUpperCase();
+                const isVenta = operation === 'VENTA' || operation === 'SELL';
+                const total = p.purchase_price * p.purchase_amount;
+                
+                return `
+                  <tr>
+                    <td class="ticker">${p.ticker}</td>
+                    <td>${p.operation || 'COMPRA'}</td>
+                    <td>$${formatNumber(p.purchase_price)}</td>
+                    <td>${p.purchase_amount.toLocaleString('es-AR')}</td>
+                    <td>${isVenta ? '-' : ''}$${formatNumber(total)}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
 
           <div class="mobile-cards mobile-only">
-            ${datePurchases.map(p => `
-              <div class="mobile-card history-card">
-                <div class="mobile-card-ticker">
-                  <span>${p.ticker}</span>
-                  <span class="mobile-card-qty">${p.operation || 'COMPRA'}</span>
+            ${datePurchases.map(p => {
+              const operation = (p.operation || 'COMPRA').toUpperCase();
+              const isVenta = operation === 'VENTA' || operation === 'SELL';
+              const total = p.purchase_price * p.purchase_amount;
+              
+              return `
+                <div class="mobile-card history-card">
+                  <div class="mobile-card-ticker">
+                    <span>${p.ticker}</span>
+                    <span class="mobile-card-qty">${p.operation || 'COMPRA'}</span>
+                  </div>
+                  <div class="mobile-card-row"><span>Precio:</span><span>$${formatNumber(p.purchase_price)}</span></div>
+                  <div class="mobile-card-row"><span>Cantidad:</span><span>${p.purchase_amount.toLocaleString('es-AR')}</span></div>
+                  <div class="mobile-card-row"><span>Total:</span><span class="${isVenta ? 'profit-negative' : ''}"><strong>${isVenta ? '-' : ''}$${formatNumber(total)}</strong></span></div>
                 </div>
-                <div class="mobile-card-row"><span>Precio:</span><span>$${formatNumber(p.purchase_price)}</span></div>
-                <div class="mobile-card-row"><span>Cantidad:</span><span>${p.purchase_amount.toLocaleString('es-AR')}</span></div>
-                <div class="mobile-card-row"><span>Total:</span><span><strong>$${formatNumber(p.purchase_price * p.purchase_amount)}</strong></span></div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
       </div>
@@ -347,8 +341,7 @@ function renderHistory(sortedDates, groupedByDate) {
 // Charting Logic
 let chartByTicker = null;
 let chartByType = null;
-let chartPerformance = null;
-let chartEquity = null;
+let chartProfitVsCost = null;
 let chartTreemap = null;
 
 function renderTreemap(tickerSummary) {
@@ -494,7 +487,7 @@ const datalabelsPlugin = {
   }
 };
 
-function initializeCharts(tickerData, typeData, perfData, equityData) {
+function initializeCharts(tickerData, typeData, pvcData) {
   const isDarkMode = document.documentElement.classList.contains('dark-mode');
   const textColor = isDarkMode ? '#cbd5e1' : '#64748b';
   
@@ -528,8 +521,7 @@ function initializeCharts(tickerData, typeData, perfData, equityData) {
 
   if (chartByTicker) chartByTicker.destroy();
   if (chartByType) chartByType.destroy();
-  if (chartPerformance) chartPerformance.destroy();
-  if (chartEquity) chartEquity.destroy();
+  if (chartProfitVsCost) chartProfitVsCost.destroy();
 
   const ctxTicker = document.getElementById('chartByTicker');
   if (ctxTicker) {
@@ -565,75 +557,41 @@ function initializeCharts(tickerData, typeData, perfData, equityData) {
     });
   }
 
-  const ctxPerf = document.getElementById('chartPerformance');
-  if (ctxPerf) {
-    chartPerformance = new Chart(ctxPerf, {
+  const ctxPvC = document.getElementById('chartProfitVsCost');
+  if (ctxPvC) {
+    chartProfitVsCost = new Chart(ctxPvC, {
       type: 'bar',
       data: {
-        labels: perfData.labels,
-        pcts: perfData.pcts,
-        datasets: [{
-          label: 'Ganancia/Pérdida ($)',
-          data: perfData.data,
-          backgroundColor: perfData.data.map(v => v >= 0 ? '#10b981' : '#ef4444'),
-          borderRadius: 4
-        }]
+        labels: pvcData.labels,
+        datasets: [
+          {
+            label: 'Inversión ($)',
+            data: pvcData.costs,
+            backgroundColor: '#4f46e6',
+            borderRadius: 4
+          },
+          {
+            label: 'Valor Actual ($)',
+            data: pvcData.currents,
+            backgroundColor: pvcData.currents.map((v, i) => v >= pvcData.costs[i] ? '#10b981' : '#ef4444'),
+            borderRadius: 4
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { 
-          legend: { display: false },
+          legend: { 
+            display: true,
+            labels: { color: textColor }
+          },
           tooltip: {
             callbacks: {
               label: (ctx) => {
                 const val = ctx.parsed.y;
-                const pct = chartPerformance.data.pcts[ctx.dataIndex];
-                return ` $${formatNumber(val)} (${formatNumber(pct)}%)`;
+                return ` ${ctx.dataset.label}: $${formatNumber(val)}`;
               }
-            }
-          }
-        },
-        scales: {
-          y: { 
-            grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
-            ticks: { color: textColor }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: textColor }
-          }
-        }
-      },
-      plugins: [datalabelsPlugin]
-    });
-  }
-
-  const ctxEquity = document.getElementById('chartEquity');
-  if (ctxEquity) {
-    chartEquity = new Chart(ctxEquity, {
-      type: 'line',
-      data: {
-        labels: equityData.labels,
-        datasets: [{
-          label: 'Inversión Acumulada',
-          data: equityData.data,
-          borderColor: '#4f46e6',
-          backgroundColor: 'rgba(79, 70, 230, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 4,
-          pointBackgroundColor: '#4f46e6'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => ` $${formatNumber(ctx.parsed.y)}`
             }
           }
         },
@@ -658,7 +616,7 @@ function initializeCharts(tickerData, typeData, perfData, equityData) {
 function updateChartColors() {
   const isDark = document.documentElement.classList.contains('dark-mode');
   const color = isDark ? '#cbd5e1' : '#64748b';
-  [chartByTicker, chartByType, chartPerformance, chartEquity].forEach(c => {
+  [chartByTicker, chartByType, chartProfitVsCost].forEach(c => {
     if (c) {
       if (c.options.plugins.legend) c.options.plugins.legend.labels.color = color;
       if (c.options.scales) {

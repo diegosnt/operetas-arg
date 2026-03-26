@@ -52,21 +52,6 @@ function renderPage() {
       </div>
     </div>
 
-
-    <!-- Nuevo: Mapa de Calor de Cartera -->
-    <section class="charts-section">
-      <div class="charts-header" data-collapsible>
-        <h2>Mapa de Calor (Treemap) - Distribución y Rendimiento</h2>
-        <span class="toggle-icon">▼</span>
-      </div>
-      <div class="charts-content">
-        <p class="section-desc">El tamaño representa el capital y el color el rendimiento (Verde: Ganancia, Rojo: Pérdida).</p>
-        <div class="treemap-container">
-          <canvas id="chartTreemap"></canvas>
-        </div>
-      </div>
-    </section>
-
     <!-- Resumen Table -->
     <section class="charts-section">
       <div class="charts-header collapsed" data-collapsible>
@@ -86,6 +71,13 @@ function renderPage() {
       </div>
       <div class="charts-content collapsed">
         <div class="summary-grid">
+          <div class="summary-chart-container" style="grid-column: 1 / -1;">
+            <h3>Mapa de Calor (Treemap) - Cartera</h3>
+            <p class="section-desc">El tamaño representa el capital y el color el rendimiento (Verde: Ganancia, Rojo: Pérdida).</p>
+            <div class="treemap-container">
+              <canvas id="chartTreemap"></canvas>
+            </div>
+          </div>
           <div class="summary-chart-container">
             <h3>Distribución por Ticker (Costo)</h3>
             <div class="chart-wrapper">
@@ -99,15 +91,9 @@ function renderPage() {
             </div>
           </div>
           <div class="summary-chart-container" style="grid-column: 1 / -1;">
-            <h3>Evolución de Inversión Total ($)</h3>
-            <div class="chart-wrapper" style="min-height: 300px;">
-              <canvas id="chartEquity"></canvas>
-            </div>
-          </div>
-          <div class="summary-chart-container" style="grid-column: 1 / -1;">
-            <h3>Ganancia / Pérdida por Activo ($)</h3>
+            <h3>Comparativa: Inversión vs Valor Actual ($)</h3>
             <div class="chart-wrapper" style="min-height: 400px;">
-              <canvas id="chartPerformance"></canvas>
+              <canvas id="chartProfitVsCost"></canvas>
             </div>
           </div>
         </div>
