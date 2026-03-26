@@ -9,7 +9,7 @@ function renderPage() {
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/styles.min.css">
-  <script>if (localStorage.getItem('darkMode') === 'enabled') document.documentElement.classList.add('dark-mode');</script>
+  <script src="/js/theme-init.js"></script>
 </head>
 <body>
   <header class="main-header">

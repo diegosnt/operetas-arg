@@ -7,18 +7,22 @@ Aplicación web profesional de alto rendimiento para el seguimiento y análisis 
 Esta aplicación ha evolucionado a una solución de alto rendimiento con las siguientes actualizaciones:
 
 - ⚡ **Performance de Grado Producción**:
-  - **Compresión Inteligente**: Implementación de Gzip/Brotli mediante `compression` para reducir transferencias hasta un 70%.
+  - **Procesamiento Paralelo**: Optimización de `getDashboardData` para ejecutar agrupamientos y peticiones de red en paralelo.
+  - **Resiliencia de Red**: Implementación de `fetchWithRetry` para manejar fallos temporales en APIs externas.
+  - **Eliminación de Redundancia**: Reducción de llamadas a API mediante el procesamiento local de datos de transacciones.
+  - **Compresión Inteligente**: Gzip/Brotli mediante `compression` para reducir transferencias hasta un 70%.
   - **Estrategia de Caché Agresiva**: Cabeceras `Cache-Control` de larga duración (1 año) para activos estáticos.
-  - **Minificación Automática**: Pipeline de construcción para CSS y JS reduciendo el tiempo de parseo del navegador.
 - 📉 **Visualización Avanzada (Chart.js v4)**:
-  - **Nuevo**: **Mapa de Calor (Treemap)** que muestra la distribution de cartera por capital (tamaño) y rendimiento (color).
+  - **Nuevo**: **Comparativa de Capital** (Inversión vs Valor Actual) para análisis de crecimiento real.
+  - **Nuevo**: **Mapa de Calor (Treemap)** que muestra la distribución de cartera por capital (tamaño) y rendimiento (color).
   - Gráfico de **Rendimiento Individual** (Barras) y Distribución (Doughnut/Pie).
-- 📱 **PWA v2 (Progressive Web App)**:
+- 📱 **PWA v3 (Progressive Web App)**:
   - **Estrategia Stale-While-Revalidate**: Carga instantánea desde caché con actualización asíncrona en segundo plano.
   - Soporte offline total para la interfaz y caché persistente de datos de API.
 - 🛡️ **Seguridad Blindada**: 
-  - Protección mediante **Helmet.js** con CSP restrictiva (solo recursos locales).
-  - Todas las librerías externas (Chart.js, Treemap) servidas localmente para máxima privacidad y control.
+  - **CSP Estricta**: Eliminación de scripts inline; configuración de Content Security Policy (`script-src: 'self'`).
+  - **Protección**: Uso de **Helmet.js** y Rate Limiting dual (Global y API).
+  - **Privacidad**: Todas las librerías externas servidas localmente desde `/js/`.
 
 ## ✨ Características Principales
 
@@ -26,35 +30,36 @@ Esta aplicación ha evolucionado a una solución de alto rendimiento con las sig
 - 🗺️ **Mapa de Calor Pro**: Identificación visual inmediata de activos ganadores y perdedores.
 - 💰 **Cartera Inteligente**: Diseño colapsable, tablas densas y vista de tarjetas optimizada para móviles.
 - 📅 **Historial Cronológico**: Operaciones agrupadas con capitalización automática y diseño compacto.
-- 🌙 **Modo Oscuro Premium**: Transiciones suaves y gráficos adaptativos.
+- 🌙 **Modo Oscuro Premium**: Transiciones suaves y gráficos adaptativos sin parpadeos iniciales.
 
 ## 🛠️ Stack Tecnológico
 
 - **Backend**: Node.js, Express.js, dotenv
 - **Base de Datos (Caché)**: Redis (vía ioredis / Upstash)
 - **Frontend**: Vanilla JS (ES6+), CSS3 (Variables & Grid), HTML5, SVG Icons
-- **Comunicación**: Fetch API (Async/Await)
+- **Comunicación**: Fetch API (Async/Await) con lógica de reintentos
 - **Gestor de Paquetes**: pnpm
 - **Optimización**: Compression, Terser, Clean-CSS
-- **Seguridad**: Helmet, Express-Rate-Limit, CORS
+- **Seguridad**: Helmet (CSP Estricta), Express-Rate-Limit, CORS
 - **Librerías**: Chart.js v4 (Local), Treemap Plugin (Local)
 
 ## Estructura del Proyecto
 
 ```
 operetas-arg/
-├── server.js               # Servidor optimizado con compresión y caché
+├── server.js               # Servidor optimizado con paralelismo y seguridad
 ├── views/
-│   └── renderPage.js       # Shell estático (Skeleton)
+│   └── renderPage.js       # Shell estático (Skeleton) limpio de scripts
 ├── public/                 # Recursos optimizados
 │   ├── css/
 │   │   ├── styles.css      # Código fuente de estilos
 │   │   └── styles.min.css  # Versión minificada para producción
 │   ├── js/
+│   │   ├── theme-init.js   # Inicialización segura de modo oscuro
 │   │   ├── app.js          # Motor de renderizado (Fuente)
 │   │   ├── app.min.js      # Motor optimizado para producción
 │   │   ├── chart.min.js    # Chart.js v4 (Local)
-│   │   └── sw.js           # Service Worker v2 (Stale-While-Revalidate)
+│   │   └── sw.js           # Service Worker v3 (Stale-While-Revalidate)
 └── package.json            # Scripts de build y dependencias
 ```
 

@@ -11,13 +11,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Performance & Seguridad ---
-app.use(compression()); // Gzip/Brotli para reducir transferencia de datos
+app.use(compression());
 
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      "script-src": ["'self'", "'unsafe-inline'"],
+      "script-src": ["'self'"],
       "img-src": ["'self'", "data:", "https:"],
     },
   },
@@ -43,37 +43,51 @@ const dataLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// Configuración de estáticos con caché agresivo (1 año) para librerías y estilos
 app.use(express.static('public', {
   maxAge: '1y',
   etag: true,
   lastModified: true
 }));
 
-
 // --- Lógica de Datos y Redis ---
 
 let redis = null;
 if (process.env.REDIS_URL) {
   try {
-    redis = new Redis(process.env.REDIS_URL, { connectTimeout: 5000, maxRetriesPerRequest: 1 });
-    redis.on('error', () => {}); 
-  } catch (e) {}
+    redis = new Redis(process.env.REDIS_URL, { 
+      connectTimeout: 5000, 
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => Math.min(times * 50, 2000)
+    });
+    redis.on('error', (err) => console.error('Redis error:', err.message)); 
+  } catch (e) {
+    console.error('Redis connection failed:', e.message);
+  }
 }
 
 const localPriceCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-async function fetchPurchases() {
-  const response = await fetch(process.env.API_URL, {
-    headers: { 'apikey': process.env.API_KEY, 'Authorization': `Bearer ${process.env.API_KEY}`, 'Content-Type': 'application/json' }
-  });
-  return await response.json();
+async function fetchWithRetry(url, options, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      if (i === retries) throw new Error(`Status ${response.status}`);
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
 }
 
-async function fetchTotalSummary() {
-  const response = await fetch(process.env.API_URL_TOTAL, {
-    headers: { 'apikey': process.env.API_KEY, 'Authorization': `Bearer ${process.env.API_KEY}`, 'Content-Type': 'application/json' }
+async function fetchPurchases() {
+  const response = await fetchWithRetry(process.env.API_URL, {
+    headers: { 
+      'apikey': process.env.API_KEY, 
+      'Authorization': `Bearer ${process.env.API_KEY}`, 
+      'Content-Type': 'application/json' 
+    }
   });
   return await response.json();
 }
@@ -93,7 +107,13 @@ async function fetchCurrentPrice(ticker) {
 
     const fullTicker = `${ticker}${process.env.MARKET_SUFFIX || ''}`;
     const url = `${process.env.PRICE_API_URL}/${fullTicker}?interval=1d&range=1d`;
-    const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    
+    const response = await fetch(url, { 
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' } 
+    });
+    
+    if (!response.ok) return null;
+    
     const data = await response.json();
     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
 
@@ -102,7 +122,9 @@ async function fetchCurrentPrice(ticker) {
       localPriceCache.set(ticker, { price, timestamp: Date.now() });
     }
     return price;
-  } catch (error) { return null; }
+  } catch (error) { 
+    return null; 
+  }
 }
 
 async function fetchAllCurrentPrices(tickers) {
@@ -111,65 +133,65 @@ async function fetchAllCurrentPrices(tickers) {
 }
 
 async function getDashboardData() {
-  const [purchases, totalSummary] = await Promise.all([fetchPurchases(), fetchTotalSummary()]);
-  const currentPrices = await fetchAllCurrentPrices(totalSummary.map(item => item.ticker));
+  const purchases = await fetchPurchases();
+  
+  // Extraemos tickers únicos para pedir precios en paralelo mientras procesamos el resto
+  const uniqueTickers = [...new Set(purchases.map(p => p.ticker))];
+  const currentPricesPromise = fetchAllCurrentPrices(uniqueTickers);
 
-  const groupedByDate = purchases.reduce((groups, p) => {
-    const d = p.purchase_date;
-    if (!groups[d]) groups[d] = [];
-    groups[d].push(p);
-    return groups;
-  }, {});
+  // Procesamiento paralelo de agrupamientos
+  const [groupedByDate, calculatedTickerSummary, groupedByType] = await Promise.all([
+    Promise.resolve(purchases.reduce((groups, p) => {
+      const d = p.purchase_date;
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(p);
+      return groups;
+    }, {})),
+    Promise.resolve(purchases.reduce((acc, p) => {
+      const ticker = p.ticker;
+      if (!acc[ticker]) {
+        acc[ticker] = { 
+          ticker, 
+          name: p.name || ticker, 
+          type: p.type || 'Sin tipo', 
+          totalAmount: 0, 
+          totalCost: 0 
+        };
+      }
+      const operation = (p.operation || 'COMPRA').toUpperCase();
+      const cost = p.purchase_price * p.purchase_amount;
+      const amount = p.purchase_amount;
+      if (operation === 'VENTA' || operation === 'SELL') {
+        acc[ticker].totalAmount -= amount;
+        acc[ticker].totalCost -= cost;
+      } else {
+        acc[ticker].totalAmount += amount;
+        acc[ticker].totalCost += cost;
+      }
+      return acc;
+    }, {})),
+    Promise.resolve(purchases.reduce((groups, p) => {
+      const t = p.type || 'Sin tipo';
+      if (!groups[t]) groups[t] = { type: t, totalCost: 0, count: 0 };
+      const operation = (p.operation || 'COMPRA').toUpperCase();
+      const cost = p.purchase_price * p.purchase_amount;
+      if (operation === 'VENTA' || operation === 'SELL') {
+        groups[t].totalCost -= cost;
+      } else {
+        groups[t].totalCost += cost;
+      }
+      groups[t].count++;
+      return groups;
+    }, {}))
+  ]);
 
-  const calculatedTickerSummary = purchases.reduce((acc, p) => {
-    const ticker = p.ticker;
-    if (!acc[ticker]) {
-      acc[ticker] = { 
-        ticker, 
-        name: p.name || ticker, 
-        type: p.type || 'Sin tipo', 
-        totalAmount: 0, 
-        totalCost: 0 
-      };
-    }
-    
-    const operation = (p.operation || 'COMPRA').toUpperCase();
-    const cost = p.purchase_price * p.purchase_amount;
-    const amount = p.purchase_amount;
-    
-    if (operation === 'VENTA' || operation === 'SELL') {
-      acc[ticker].totalAmount -= amount;
-      acc[ticker].totalCost -= cost;
-    } else {
-      acc[ticker].totalAmount += amount;
-      acc[ticker].totalCost += cost;
-    }
-    
-    return acc;
-  }, {});
+  const currentPrices = await currentPricesPromise;
 
   const tickerSummary = Object.values(calculatedTickerSummary).map(item => ({
     ...item,
     averagePrice: item.totalAmount > 0 ? item.totalCost / item.totalAmount : 0,
     currentPrice: currentPrices[item.ticker] || null
   })).sort((a, b) => a.ticker.localeCompare(b.ticker));
-
-  const groupedByType = purchases.reduce((groups, p) => {
-    const t = p.type || 'Sin tipo';
-    if (!groups[t]) groups[t] = { type: t, totalCost: 0, count: 0 };
-    
-    const operation = (p.operation || 'COMPRA').toUpperCase();
-    const cost = p.purchase_price * p.purchase_amount;
-    
-    if (operation === 'VENTA' || operation === 'SELL') {
-      groups[t].totalCost -= cost;
-    } else {
-      groups[t].totalCost += cost;
-    }
-    
-    groups[t].count++;
-    return groups;
-  }, {});
 
   return {
     tickerSummary,
@@ -187,7 +209,10 @@ app.get('/api/data', dataLimiter, async (req, res) => {
   try {
     const data = await getDashboardData();
     res.json(data);
-  } catch (error) { res.status(500).json({ error: 'Error al obtener datos' }); }
+  } catch (error) { 
+    console.error('Data Error:', error.message);
+    res.status(500).json({ error: 'Error al obtener datos' }); 
+  }
 });
 
-app.listen(PORT, () => {});
+app.listen(PORT, () => console.log(`🚀 Server ready on port ${PORT}`));

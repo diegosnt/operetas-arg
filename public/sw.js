@@ -1,10 +1,11 @@
-const CACHE_NAME = 'operetas-v2';
+const CACHE_NAME = 'operetas-v3';
 const ASSETS = [
   '/',
   '/css/styles.min.css',
   '/js/app.min.js',
   '/js/chart.min.js',
   '/js/chartjs-chart-treemap.min.js',
+  '/js/theme-init.js',
   '/favicon.svg',
   '/manifest.json'
 ];
