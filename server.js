@@ -187,15 +187,25 @@ async function getDashboardData() {
 
   const currentPrices = await currentPricesPromise;
 
-  const tickerSummary = Object.values(calculatedTickerSummary).map(item => ({
-    ...item,
-    averagePrice: item.totalAmount > 0 ? item.totalCost / item.totalAmount : 0,
-    currentPrice: currentPrices[item.ticker] || null
-  })).sort((a, b) => a.ticker.localeCompare(b.ticker));
+  const tickerSummary = Object.values(calculatedTickerSummary)
+    .filter(item => item.totalAmount > 0)
+    .map(item => ({
+      ...item,
+      averagePrice: item.totalCost / item.totalAmount,
+      currentPrice: currentPrices[item.ticker] || null
+    })).sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+  // Recalcular typeSummary basado solo en activos con cantidad > 0
+  const typeSummaryMap = tickerSummary.reduce((acc, item) => {
+    const type = item.type || 'Sin tipo';
+    if (!acc[type]) acc[type] = { type, totalCost: 0 };
+    acc[type].totalCost += item.totalCost;
+    return acc;
+  }, {});
 
   return {
     tickerSummary,
-    typeSummary: Object.values(groupedByType).sort((a, b) => a.type.localeCompare(b.type)),
+    typeSummary: Object.values(typeSummaryMap).sort((a, b) => a.type.localeCompare(b.type)),
     sortedDates: Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)),
     groupedByDate,
     purchases

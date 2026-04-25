@@ -76,7 +76,19 @@ async function fetchDashboardData() {
 function renderDashboard() {
   if (!dashboardData) return;
   
-  const { tickerSummary, typeSummary, sortedDates, groupedByDate, purchases } = dashboardData;
+  // Filtrar solo activos con cantidad > 0
+  const tickerSummary = dashboardData.tickerSummary.filter(item => item.totalAmount > 0);
+  
+  // Recalcular typeSummary para que sea consistente con los activos filtrados
+  const typeSummaryMap = tickerSummary.reduce((acc, item) => {
+    const type = item.type || 'Sin tipo';
+    if (!acc[type]) acc[type] = { type, totalCost: 0 };
+    acc[type].totalCost += item.totalCost;
+    return acc;
+  }, {});
+  const typeSummary = Object.values(typeSummaryMap).sort((a, b) => a.type.localeCompare(b.type));
+
+  const { sortedDates, groupedByDate, purchases } = dashboardData;
   
   const totalCost = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
   const totalCurrent = tickerSummary.reduce((sum, item) => {
