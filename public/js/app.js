@@ -1,11 +1,70 @@
 // State management
 let dashboardData = null;
+let sortConfig = { key: 'ticker', direction: 'asc' };
 
 // Helpers
 const formatNumber = (num) => {
   if (num === null || num === undefined) return '0,00';
   return num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+function sortTickerData(data, key, direction) {
+  return [...data].sort((a, b) => {
+    let valA, valB;
+
+    switch(key) {
+      case 'ticker':
+      case 'name':
+      case 'type':
+        valA = a[key] || '';
+        valB = b[key] || '';
+        return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      
+      case 'currentPrice':
+        valA = a.currentPrice || 0;
+        valB = b.currentPrice || 0;
+        break;
+      case 'averagePrice':
+        valA = a.averagePrice || 0;
+        valB = b.averagePrice || 0;
+        break;
+      case 'totalAmount':
+        valA = a.totalAmount || 0;
+        valB = b.totalAmount || 0;
+        break;
+      case 'totalCost':
+        valA = a.totalCost || 0;
+        valB = b.totalCost || 0;
+        break;
+      case 'currentTotal':
+        valA = (a.currentPrice || 0) * a.totalAmount;
+        valB = (b.currentPrice || 0) * b.totalAmount;
+        break;
+      case 'profit':
+        const curTotalA = (a.currentPrice || 0) * a.totalAmount;
+        valA = curTotalA - a.totalCost;
+        const curTotalB = (b.currentPrice || 0) * b.totalAmount;
+        valB = curTotalB - b.totalCost;
+        break;
+      case 'profitPct':
+        const currentTotalA = (a.currentPrice || 0) * a.totalAmount;
+        const profitA = currentTotalA - a.totalCost;
+        valA = a.totalCost > 0 ? (profitA / a.totalCost) : 0;
+        
+        const currentTotalB = (b.currentPrice || 0) * b.totalAmount;
+        const profitB = currentTotalB - b.totalCost;
+        valB = b.totalCost > 0 ? (profitB / b.totalCost) : 0;
+        break;
+      default:
+        valA = a[key];
+        valB = b[key];
+    }
+
+    if (valA < valB) return direction === 'asc' ? -1 : 1;
+    if (valA > valB) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
 
 // --- Manejo de Eventos (Refactorizado para Seguridad) ---
 
@@ -28,6 +87,20 @@ function handleGlobalClicks(e) {
   // 3. Botón Modo Oscuro
   if (e.target.closest('#theme-toggle-btn')) {
     toggleDarkMode();
+    return;
+  }
+
+  // 4. Ordenamiento de Tabla
+  const sortHeader = e.target.closest('th[data-sort]');
+  if (sortHeader) {
+    const key = sortHeader.dataset.sort;
+    if (sortConfig.key === key) {
+      sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortConfig.key = key;
+      sortConfig.direction = (key === 'ticker' || key === 'name') ? 'asc' : 'desc';
+    }
+    renderDashboard();
     return;
   }
 }
@@ -77,7 +150,10 @@ function renderDashboard() {
   if (!dashboardData) return;
   
   // Filtrar solo activos con cantidad > 0
-  const tickerSummary = dashboardData.tickerSummary.filter(item => item.totalAmount > 0);
+  const tickerSummaryRaw = dashboardData.tickerSummary.filter(item => item.totalAmount > 0);
+  
+  // Ordenar datos según la configuración actual
+  const tickerSummary = sortTickerData(tickerSummaryRaw, sortConfig.key, sortConfig.direction);
   
   // Recalcular typeSummary para que sea consistente con los activos filtrados
   const typeSummaryMap = tickerSummary.reduce((acc, item) => {
@@ -167,17 +243,25 @@ function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit,
   const hasTotalCurrent = totalCurrent > 0;
   const totalProfitClass = totalProfit >= 0 ? 'profit-positive' : 'profit-negative';
 
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return '<span class="sort-icon">↕</span>';
+    return sortConfig.direction === 'asc' ? '<span class="sort-icon">↑</span>' : '<span class="sort-icon">↓</span>';
+  };
+
   let html = `
     <div class="table-container">
       <table class="desktop-only">
         <thead>
           <tr>
-            <th>Activo</th>
-            <th class="hide-tablet">Nombre</th>
-            <th>Precios <small>(Prom/Act)</small></th>
-            <th>Cant.</th>
-            <th>Totales <small>(Costo/Act)</small></th>
-            <th>Rendimiento</th>
+            <th data-sort="ticker" class="sortable">Activo ${getSortIcon('ticker')}</th>
+            <th data-sort="name" class="hide-tablet sortable">Nombre ${getSortIcon('name')}</th>
+            <th data-sort="averagePrice" class="sortable">P. Promedio ${getSortIcon('averagePrice')}</th>
+            <th data-sort="currentPrice" class="sortable">P. Actual ${getSortIcon('currentPrice')}</th>
+            <th data-sort="totalAmount" class="sortable">Cant. ${getSortIcon('totalAmount')}</th>
+            <th data-sort="totalCost" class="sortable">Costo Total ${getSortIcon('totalCost')}</th>
+            <th data-sort="currentTotal" class="sortable">Valor Actual ${getSortIcon('currentTotal')}</th>
+            <th data-sort="profit" class="sortable">Resultado $ ${getSortIcon('profit')}</th>
+            <th data-sort="profitPct" class="sortable">Rendimiento % ${getSortIcon('profitPct')}</th>
           </tr>
         </thead>
         <tbody>
@@ -198,24 +282,16 @@ function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit,
                 <td class="hide-tablet">
                   <div class="truncate" title="${item.name}">${item.name}</div>
                 </td>
-                <td>
-                  <div class="cell-stack">
-                    <span>$${formatNumber(item.averagePrice)}</span>
-                    <span class="cell-subtext">${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</span>
-                  </div>
-                </td>
+                <td>$${formatNumber(item.averagePrice)}</td>
+                <td>${item.currentPrice !== null ? '$' + formatNumber(item.currentPrice) : 'N/A'}</td>
                 <td>${item.totalAmount.toLocaleString('es-AR')}</td>
-                <td>
-                  <div class="cell-stack">
-                    <span>$${formatNumber(item.totalCost)}</span>
-                    <span class="cell-subtext">${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</span>
-                  </div>
+                <td>$${formatNumber(item.totalCost)}</td>
+                <td>${currentTotal !== null ? '$' + formatNumber(currentTotal) : 'N/A'}</td>
+                <td class="${profitClass}" style="font-weight: bold;">
+                  ${profit !== null ? '$' + formatNumber(profit) : 'N/A'}
                 </td>
-                <td>
-                  <div class="cell-stack ${profitClass}">
-                    <span style="font-weight: bold;">${profit !== null ? '$' + formatNumber(profit) : 'N/A'}</span>
-                    <span class="cell-subtext" style="font-weight: bold;">${profitPct !== null ? formatNumber(profitPct) + '%' : 'N/A'}</span>
-                  </div>
+                <td class="${profitClass}" style="font-weight: bold;">
+                  ${profitPct !== null ? formatNumber(profitPct) + '%' : 'N/A'}
                 </td>
               </tr>
             `;
@@ -224,18 +300,15 @@ function renderSummaryTable(tickerSummary, totalCost, totalCurrent, totalProfit,
             <td>TOTALES</td>
             <td class="hide-tablet"></td>
             <td></td>
+            <td></td>
             <td>${tickerSummary.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString('es-AR')}</td>
-            <td>
-              <div class="cell-stack">
-                <span>$${formatNumber(totalCost)}</span>
-                <span class="cell-subtext">${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</span>
-              </div>
+            <td>$${formatNumber(totalCost)}</td>
+            <td>${hasTotalCurrent ? '$' + formatNumber(totalCurrent) : 'N/A'}</td>
+            <td class="${totalProfitClass}">
+              ${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}
             </td>
-            <td>
-              <div class="cell-stack ${totalProfitClass}">
-                <span>${hasTotalCurrent ? '$' + formatNumber(totalProfit) : 'N/A'}</span>
-                <span class="cell-subtext">${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}</span>
-              </div>
+            <td class="${totalProfitClass}">
+              ${hasTotalCurrent ? formatNumber(totalProfitPct) + '%' : 'N/A'}
             </td>
           </tr>
         </tbody>

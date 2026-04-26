@@ -329,3 +329,27 @@ tr:hover td {
 }
 
 footer { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.75rem; }
+
+/* Table Sorting */
+th.sortable {
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+th.sortable:hover {
+  color: var(--color-primary);
+}
+
+.sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.8rem;
+  opacity: 0.5;
+  vertical-align: middle;
+}
+
+th.sortable:hover .sort-icon {
+  opacity: 1;
+}
