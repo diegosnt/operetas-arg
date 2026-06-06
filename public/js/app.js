@@ -198,10 +198,13 @@ function renderDashboard() {
   const totalTickerCostForLabels = tickerSummary.reduce((sum, item) => sum + item.totalCost, 0);
   const totalTypeCostForLabels = typeSummary.reduce((sum, item) => sum + item.totalCost, 0);
 
+  const sortedTickerSummaryForChart = [...tickerSummary].sort((a, b) => b.totalCost - a.totalCost);
+
   initializeCharts(
     {
-      labels: tickerSummary.map(item => item.ticker),
-      data: tickerSummary.map(item => parseFloat(item.totalCost.toFixed(2)))
+      labels: sortedTickerSummaryForChart.map(item => item.ticker),
+      data: sortedTickerSummaryForChart.map(item => parseFloat(item.totalCost.toFixed(2))),
+      pcts: sortedTickerSummaryForChart.map(item => totalTickerCostForLabels > 0 ? parseFloat(((item.totalCost / totalTickerCostForLabels) * 100).toFixed(2)) : 0)
     },
     {
       labels: typeSummary.map(item => item.type),
@@ -611,16 +614,49 @@ function initializeCharts(tickerData, typeData, pvcData) {
   const ctxTicker = document.getElementById('chartByTicker');
   if (ctxTicker) {
     chartByTicker = new Chart(ctxTicker, {
-      type: 'doughnut',
+      type: 'bar',
       data: {
         labels: tickerData.labels,
         datasets: [{
+          label: 'Costo ($)',
           data: tickerData.data,
-          backgroundColor: ['#4f46e6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
-          borderWidth: 0
-        }]
+          backgroundColor: tickerData.data.map((_, idx) => {
+            const colors = ['#4f46e6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            return colors[idx % colors.length];
+          }),
+          borderRadius: 4
+        }],
+        pcts: tickerData.pcts
       },
-      options: pieOptions,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.parsed.y;
+                const pct = ctx.chart.data.pcts ? ctx.chart.data.pcts[ctx.dataIndex] : 0;
+                return ` Costo: $${formatNumber(val)} (${formatNumber(pct)}%)`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: { 
+            grid: { color: isDarkMode ? '#334155' : '#e2e8f0' },
+            ticks: { 
+              color: textColor,
+              callback: (val) => '$' + formatNumber(val)
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor }
+          }
+        }
+      },
       plugins: [datalabelsPlugin]
     });
   }
