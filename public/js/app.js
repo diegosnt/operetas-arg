@@ -205,9 +205,11 @@ function renderDashboard() {
       labels: sortedTickerSummaryForChart.map(item => item.ticker),
       data: sortedTickerSummaryForChart.map(item => parseFloat(item.totalCost.toFixed(2))),
       pcts: sortedTickerSummaryForChart.map(item => totalTickerCostForLabels > 0 ? parseFloat(((item.totalCost / totalTickerCostForLabels) * 100).toFixed(2)) : 0),
-      currents: sortedTickerSummaryForChart.map(item => {
+      rends: sortedTickerSummaryForChart.map(item => {
         const currentVal = item.currentPrice !== null ? item.currentPrice * item.totalAmount : 0;
-        return parseFloat(currentVal.toFixed(2));
+        const profit = currentVal - item.totalCost;
+        const rend = item.totalCost > 0 ? (profit / item.totalCost) * 100 : 0;
+        return parseFloat(rend.toFixed(2));
       })
     },
     {
@@ -548,10 +550,17 @@ const datalabelsPlugin = {
           x = center.x;
           y = center.y;
         } else if (type === 'bar') {
-          if (chart.canvas.id === 'chartByTicker' && i !== 0) return;
           const pct = chart.data.pcts ? chart.data.pcts[index] : 0;
           if (Math.abs(pct) < 0.1) return;
-          text = formatNumber(pct) + '%';
+          
+          let rendText = '';
+          if (chart.canvas.id === 'chartByTicker' && chart.data.rends) {
+            const rend = chart.data.rends[index] || 0;
+            const sign = rend >= 0 ? '+' : '';
+            rendText = ` (${sign}${formatNumber(rend)}%)`;
+          }
+          
+          text = formatNumber(pct) + '%' + rendText;
           const model = element;
           x = model.x;
           const isPositive = dataset.data[index] >= 0;
@@ -622,57 +631,31 @@ function initializeCharts(tickerData, typeData, pvcData) {
       type: 'bar',
       data: {
         labels: tickerData.labels,
-        datasets: [
-          {
-            label: 'Inversión ($)',
-            data: tickerData.data,
-            backgroundColor: tickerData.data.map((_, idx) => {
-              const colors = ['#4f46e6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-              return colors[idx % colors.length];
-            }),
-            borderRadius: 4,
-            barPercentage: 0.8,
-            categoryPercentage: 0.8,
-            grouped: false
-          },
-          {
-            label: 'Valor Actual ($)',
-            data: tickerData.currents,
-            backgroundColor: tickerData.currents.map((v, i) => {
-              const cost = tickerData.data[i];
-              return v >= cost ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
-            }),
-            borderRadius: 4,
-            barPercentage: 0.45,
-            categoryPercentage: 0.8,
-            grouped: false
-          }
-        ],
-        pcts: tickerData.pcts
+        datasets: [{
+          label: 'Costo ($)',
+          data: tickerData.data,
+          backgroundColor: tickerData.data.map((_, idx) => {
+            const colors = ['#4f46e6', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            return colors[idx % colors.length];
+          }),
+          borderRadius: 4
+        }],
+        pcts: tickerData.pcts,
+        rends: tickerData.rends
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { 
-            display: true,
-            labels: { color: textColor, usePointStyle: true }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const datasetLabel = ctx.dataset.label || '';
                 const val = ctx.parsed.y;
-                if (ctx.datasetIndex === 0) {
-                  const pct = ctx.chart.data.pcts ? ctx.chart.data.pcts[ctx.dataIndex] : 0;
-                  return ` ${datasetLabel}: $${formatNumber(val)} (${formatNumber(pct)}% del total)`;
-                } else {
-                  const cost = ctx.chart.data.datasets[0].data[ctx.dataIndex];
-                  const diff = val - cost;
-                  const diffPct = cost > 0 ? (diff / cost) * 100 : 0;
-                  const sign = diff >= 0 ? '+' : '';
-                  return ` ${datasetLabel}: $${formatNumber(val)} (${sign}${formatNumber(diffPct)}%)`;
-                }
+                const pct = ctx.chart.data.pcts ? ctx.chart.data.pcts[ctx.dataIndex] : 0;
+                const rend = ctx.chart.data.rends ? ctx.chart.data.rends[ctx.dataIndex] : 0;
+                const sign = rend >= 0 ? '+' : '';
+                return ` Costo: $${formatNumber(val)} (${formatNumber(pct)}% del total) | Rend: ${sign}${formatNumber(rend)}%`;
               }
             }
           }
