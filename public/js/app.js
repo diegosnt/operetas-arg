@@ -553,22 +553,39 @@ const datalabelsPlugin = {
           const pct = chart.data.pcts ? chart.data.pcts[index] : 0;
           if (Math.abs(pct) < 0.1) return;
           
-          let rendText = '';
           if (chart.canvas.id === 'chartByTicker' && chart.data.rends) {
             const rend = chart.data.rends[index] || 0;
             const sign = rend >= 0 ? '+' : '';
-            rendText = ` (${sign}${formatNumber(rend)}%)`;
+            text = [
+              formatNumber(pct) + '%',
+              `${sign}${formatNumber(rend)}%`
+            ];
+          } else {
+            text = formatNumber(pct) + '%';
           }
           
-          text = formatNumber(pct) + '%' + rendText;
           const model = element;
           x = model.x;
           const isPositive = dataset.data[index] >= 0;
-          y = isPositive ? model.y + 15 : model.y - 15;
           const barHeight = Math.abs(model.base - model.y);
-          if (barHeight < 25) {
-            y = isPositive ? model.y - 10 : model.y + 10;
-            useWhite = false; // Fuera de la barra usamos color de tema
+          const hasTwoLines = Array.isArray(text);
+          
+          if (hasTwoLines) {
+            if (barHeight >= 45) {
+              y = isPositive ? model.y + 12 : model.y - 26;
+              useWhite = true;
+            } else {
+              y = isPositive ? model.y - 32 : model.y + 12;
+              useWhite = false;
+            }
+          } else {
+            if (barHeight >= 25) {
+              y = isPositive ? model.y + 15 : model.y - 15;
+              useWhite = true;
+            } else {
+              y = isPositive ? model.y - 10 : model.y + 10;
+              useWhite = false;
+            }
           }
         }
 
@@ -581,7 +598,14 @@ const datalabelsPlugin = {
             ctx.fillStyle = document.documentElement.classList.contains('dark-mode') ? '#cbd5e1' : '#64748b';
             ctx.shadowBlur = 0;
           }
-          ctx.fillText(text, x, y);
+          
+          if (Array.isArray(text)) {
+            text.forEach((line, lineIdx) => {
+              ctx.fillText(line, x, y + (lineIdx * 14));
+            });
+          } else {
+            ctx.fillText(text, x, y);
+          }
         }
       });
     });
